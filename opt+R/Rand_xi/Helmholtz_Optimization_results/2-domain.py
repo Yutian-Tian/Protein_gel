@@ -23,20 +23,20 @@ math_rm = 'Times New Roman'
 math_it = 'Times New Roman:italic'
 math_bf = 'Times New Roman:bold'
 
-title_fontsize = 35
-label_fontsize = 35
-tick_fontsize = 35
+title_fontsize = 45
+label_fontsize = 45
+tick_fontsize = 45
 legend_fontsize = 25
 legend_title_fontsize = 35
 
 axes_linewidth = 2
-xtick_major_width = 2
-ytick_major_width = 2
-xtick_major_size = 10
-ytick_major_size = 10
+xtick_major_width = 8
+ytick_major_width = 8
+xtick_major_size = 8
+ytick_major_size = 8
 grid_linewidth = 1
 grid_alpha = 0.4
-lines_linewidth = 1
+lines_linewidth = 5
 lines_markersize = 15
 
 xtick_direction = 'in'
@@ -85,12 +85,12 @@ plt.rcParams.update({
 
 # ============ 物理参数 ============
 xi_f1 = 5.0          # 第一个domain的折叠态长度
-k = 1.1              # k = xi_ui/xi_fi
+k = 7.0              # k = xi_ui/xi_fi
 #alpha = 5.0          # alpha = delta_Ei/xi_fi
-beta = 1.0           # beta = xi_f2/xi_f1
-force_limit = 20.0    # 力曲线y轴上限
-E0 = 2.0
-delta = 0.1
+beta = 1.5           # beta = xi_f2/xi_f1
+force_limit = 250.0    # 力曲线y轴上限
+E0 = 220.0
+delta = 20.0
 
 # 优化参数
 r_grids = 1000
@@ -260,13 +260,12 @@ def plot_n_curves(ax, r, n1, n2, title):
 
 def plot_force_curves(ax, r, force1, force2, title):
     """绘制f1, f2 vs r曲线"""
-    ax.plot(r, force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
-    ax.plot(r, force2, color='red', linewidth=lines_linewidth, linestyle='--', label='$f_2$', zorder=3)
+    ax.plot(r, 5.1*force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
+    ax.plot(r, 5.1*force2, color='black', linewidth=lines_linewidth, linestyle='-', label='$f_2$', zorder=3)
     ax.set_xlabel('$r$', fontsize=label_fontsize)
-    ax.set_ylabel('$f$', fontsize=label_fontsize)
+    ax.set_ylabel('$f \quad [\\text{pN}]$', fontsize=label_fontsize)
     ax.set_title(title, fontsize=title_fontsize, pad=20)
     ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
-    ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     # 刻度设置
     ax.tick_params(axis='both', which='major',
                    direction=xtick_direction, top=xtick_top, right=ytick_right,

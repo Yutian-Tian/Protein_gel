@@ -81,7 +81,7 @@ xi_f1 = 5.0          # 第一个domain的折叠态长度
 k = 2.0              # k = xi_ui/xi_fi
 gamma_default = 1.1  # 默认 gamma 值（当文件中无法解析时使用）
 beta_default = 0.7   # 默认 beta 值
-force_limit = 5.0
+force_limit = 10.0
 
 def contour_length_Lci(n_i, xi_fi):
     """
@@ -163,7 +163,7 @@ def plot_force_curves(ax, r, force1, force2, title):
 
 # ============ 批量绘图主程序 ============
 def main():
-    data_dir = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Helmholtz_Optimization_results/2-domain_results"
+    data_dir = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Helmholtz_Optimization_results/2-domain_results_E0=5,g2"
     output_dir = os.path.join(data_dir, "Figure")
     os.makedirs(output_dir, exist_ok=True)
 

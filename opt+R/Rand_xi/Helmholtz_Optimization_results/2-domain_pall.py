@@ -90,11 +90,11 @@ plt.rcParams.update({
 
 # ============ 物理参数 ============
 xi_f1 = 5.0          # 第一个domain的折叠态长度
-k = 7.0              # k = xi_ui/xi_fi
-gamma= 1.0      # alpha = delta_Ei/xi_fi
-beta = 0.9           # beta = xi_f2/xi_f1
-force_limit = 3.0    # 力曲线y轴上限
-E0 = 5.0
+alpha = 7.0              # alpha = xi_ui/xi_fi
+beta = 1.5           # beta = xi_f2/xi_f1
+force_limit = 250.0    # 力曲线y轴上限
+E0 = 220.0
+delta = 20.0
 
 # 优化参数
 r_grids = 1000
@@ -112,9 +112,9 @@ def energy_term_U(n_i, DeltaEi):
 
 def contour_length_Lci(n_i, xi_fi):
     """
-    轮廓长度: L_{ci}(n_i) = ξ_fi + n_i (k - 1)ξ_fi
+    轮廓长度: L_{ci}(n_i) = ξ_fi + n_i (alpha - 1)ξ_fi
     """
-    return xi_fi + n_i * (k - 1) * xi_fi
+    return xi_fi + n_i * (alpha - 1) * xi_fi
 
 def end_to_end_factor_x_i(r_i, n_i, xi_fi):
     """
@@ -140,11 +140,11 @@ def single_domain_free_energy(r_i, n_i, DeltaEi, xi_fi):
 def free_energy_2_domain(r, r1, n1, n2):
     # 第1个domain的能量
     xi_f2 = beta * xi_f1
-    delta_E1 = E0*(1 + gamma*(1-beta))
+    delta_E1 = E0
     energy1 = single_domain_free_energy(r1, n1, delta_E1, xi_f1)
     # 第2个domain的能量
     r2 = r - r1
-    delta_E2 = E0
+    delta_E2 = E0 + delta
     energy2 = single_domain_free_energy(r2, n2, delta_E2, xi_f2)
     total = energy1 + energy2
     if not np.isfinite(total):
@@ -179,27 +179,15 @@ def Optimize_single_point(r, init_points=15, refine_levels=6, refine_points=15, 
             for n2 in n2_grid:
                 Lc1 = contour_length_Lci(n1, xi_f1)
                 Lc2 = contour_length_Lci(n2, beta * xi_f1)
-                r1_lower = max(0.0, r - min(r, Lc2))
-                r1_upper = min(Lc1, r)
-                if r1_lower > r1_upper:
-                    continue  # 不可行
-
-                # 对 r1 进行一维凸优化
-                res = minimize_scalar(
-                    lambda r1: free_energy_2_domain(r, r1, n1, n2),
-                    bounds=(r1_lower, r1_upper),
-                    method='bounded',
-                    options={'xatol': 1e-8, 'maxiter': 100}
-                )
-                if res.success and res.fun < level_best_F:
-                    level_best_F = res.fun
-                    level_best_r1 = res.x
+                r1 = r*Lc1/(Lc1 + Lc2)
+                
+                F = free_energy_2_domain(r, r1, n1, n2)
+                if F < level_best_F:
+                    level_best_F = F
+                    level_best_r1 = r1
                     level_best_n1 = n1
                     level_best_n2 = n2
 
-        # 如果当前层无可行点，直接返回 NaN
-        if level_best_F == float('inf'):
-            return np.array([r, np.nan, np.nan, np.nan])
 
         # 更新全局最优
         if level_best_F < best_F:
@@ -264,8 +252,8 @@ def plot_n_curves(ax, r, n1, n2, title):
 
 def plot_force_curves(ax, r, force1, force2, title):
     """绘制f1, f2 vs r曲线"""
-    ax.plot(r, force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
-    ax.plot(r, force2, color='red', linewidth=lines_linewidth, linestyle='--', label='$f_2$', zorder=3)
+    ax.plot(r, 5.1*force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
+    ax.plot(r, 5.1*force2, color='red', linewidth=lines_linewidth, linestyle='--', label='$f_2$', zorder=3)
     ax.set_xlabel('$r$', fontsize=label_fontsize)
     ax.set_ylabel('$f$', fontsize=label_fontsize)
     ax.set_title(title, fontsize=title_fontsize, pad=20)
@@ -343,7 +331,7 @@ def main():
     force2 = np.where(np.isfinite(force2), force2, np.nan)
 
     # 标题
-    title = f"α = {gamma}, 1/β = {beta}"
+    title = f"Force-extension curve"
 
     # 创建Figure文件夹
     output_dir = os.path.join(save_path, "Figure")

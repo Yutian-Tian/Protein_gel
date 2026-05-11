@@ -1,7 +1,7 @@
 """
-目的：探究不同参数下的三个domain的解折叠顺序（并行加速版，无tqdm）
-系统：包含3个domain，使用多进程并行优化
-优化策略：版本A的回退网格凸优化 + 三维网格细化
+目的：探究不同参数下的四个domain的解折叠顺序（并行加速版，无tqdm）
+系统：包含4个domain，使用多进程并行优化
+优化策略：版本A的回退网格凸优化 + 四维网格细化
 """
 
 import numpy as np
@@ -9,7 +9,6 @@ import pandas as pd
 import os
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
-from scipy.optimize import minimize, LinearConstraint
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
 # ============ 字体路径（如有需要可修改） ============
@@ -36,7 +35,7 @@ xtick_major_size = 10
 ytick_major_size = 10
 grid_linewidth = 1
 grid_alpha = 0.4
-lines_linewidth = 1
+lines_linewidth = 5
 lines_markersize = 15
 
 xtick_direction = 'in'
@@ -83,43 +82,46 @@ plt.rcParams.update({
     'ytick.right': ytick_right,
 })
 
-# ============ 物理参数（版本B） ============
-xi_f1 = 5.0          # 第一个domain的折叠态长度
-alpha = 7.0              # alpha = xi_ui/xi_fi
-beta2 = 1.5          # xi_f2 / xi_f1
-beta3 = 2.0          # xi_f3 / xi_f1
-force_limit = 20.0   # 力曲线y轴上限
-E0 = 2.0
-Ek = 5.0             # 能量系数
+# ============ 物理参数（扩展为4个域） ============
+xi_f1 = 15.0          # 第一个domain的折叠态长度
+alpha = 2.0           # alpha = xi_ui/xi_fi
+beta2 = 1.5           # xi_f2 / xi_f1
+beta3 = 2.0           # xi_f3 / xi_f1
+beta4 = 2.5           # xi_f4 / xi_f1
+force_limit = 20.0    # 力曲线y轴上限
+E0 = 5.0
+Ek = 2.0              # 能量系数
 
-# 三个域的具体参数
+# 四个域的具体参数
 xi_f2 = beta2 * xi_f1
 xi_f3 = beta3 * xi_f1
+xi_f4 = beta4 * xi_f1
 DeltaE1 = E0
-DeltaE2 = E0 + Ek*(xi_f2 - xi_f1)
-DeltaE3 = E0 + Ek*(xi_f3 - xi_f1)
+DeltaE2 = E0 + Ek * (xi_f2 - xi_f1)
+DeltaE3 = E0 + Ek * (xi_f3 - xi_f1)
+DeltaE4 = E0 + Ek * (xi_f4 - xi_f1)
 
-xi_f_list = [xi_f1, xi_f2, xi_f3]
-DeltaE_list = [DeltaE1, DeltaE2, DeltaE3]
+xi_f_list = [xi_f1, xi_f2, xi_f3, xi_f4]
+DeltaE_list = [DeltaE1, DeltaE2, DeltaE3, DeltaE4]
 
 # 优化参数
 r_grids = 1000
 
 # 外层搜索参数（版本A风格）
-init_points = 10      # 粗网格点数（每个维度），9^3=729个初始点
-refine_levels = 8    # 细化层数
-refine_points = 10   # 每层细化点数（每个维度）
-tol = 1e-6           # 收敛容差
+init_points = 10      # 粗网格点数（每个维度），10^4=10000个初始点
+refine_levels = 8     # 细化层数
+refine_points = 10    # 每层细化点数（每个维度）
+tol = 1e-6            # 收敛容差
 
 # 并行参数
-n_workers = 8     # None表示使用所有CPU核心，也可指定数字如8
+n_workers = 8         # None表示使用所有CPU核心，也可指定数字如8
 
 # 设置存储路径
-save_path = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Helmholtz_Optimization_results/3_domain_results_pall"
+save_path = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Helmholtz_Optimization_results/4_domain_results_pall"
 os.makedirs(save_path, exist_ok=True)
 
 
-# ---------- 辅助函数（与串行版相同，必须在顶层以支持pickle） ----------
+# ---------- 辅助函数（与3域类似，扩展到4域） ----------
 def contour_length_Lci(n_i, xi_fi):
     return xi_fi + n_i * (alpha - 1) * xi_fi
 
@@ -144,69 +146,40 @@ def single_domain_free_energy(r_i, n_i, DeltaEi, xi_fi):
     return F_wlc + Ui
 
 
-def total_free_energy_3domain(r, r1, r2, n1, n2, n3):
-    r3 = r - r1 - r2
+def total_free_energy_4domain(r, r1, r2, r3, n1, n2, n3, n4):
+    r4 = r - r1 - r2 - r3
     F1 = single_domain_free_energy(r1, n1, DeltaE_list[0], xi_f_list[0])
     F2 = single_domain_free_energy(r2, n2, DeltaE_list[1], xi_f_list[1])
     F3 = single_domain_free_energy(r3, n3, DeltaE_list[2], xi_f_list[2])
-    total = F1 + F2 + F3
+    F4 = single_domain_free_energy(r4, n4, DeltaE_list[3], xi_f_list[3])
+    total = F1 + F2 + F3 + F4
     if not np.isfinite(total):
         return 1e300
     return total
 
 
-def optimize_r1r2_given_n(r, n1, n2, n3):
+def optimize_r1r2r3_given_n(r, n1, n2, n3, n4):
     L1 = contour_length_Lci(n1, xi_f_list[0])
     L2 = contour_length_Lci(n2, xi_f_list[1])
     L3 = contour_length_Lci(n3, xi_f_list[2])
+    L4 = contour_length_Lci(n4, xi_f_list[3])
+    L_total = L1 + L2 + L3 + L4
 
-    if r < 0 or r > L1 + L2 + L3:
-        return np.nan, np.nan, 1e300
+    r1 = r * L1 / L_total
+    r2 = r * L2 / L_total
+    r3 = r * L3 / L_total
+    # r4 = r - r1 - r2 - r3  在 total_free_energy 内计算
 
-    def objective(r12):
-        r1v, r2v = r12[0], r12[1]
-        return total_free_energy_3domain(r, r1v, r2v, n1, n2, n3)
-
-    bounds = [(0, L1), (0, L2)]
-    A = [[1, 1], [-1, -1]]
-    b_ub = [r, -(r - L3)]
-    linear_constraint = LinearConstraint(A, lb=-np.inf, ub=b_ub)
-
-    r1_guess = min(L1, max(0, r / 3))
-    r2_guess = min(L2, max(0, (r - r1_guess) / 2))
-    x0 = [r1_guess, r2_guess]
-
-    try:
-        res = minimize(objective, x0, method='SLSQP',
-                       bounds=bounds, constraints=linear_constraint,
-                       options={'ftol': 1e-9, 'disp': False})
-        if res.success and np.isfinite(res.fun):
-            return res.x[0], res.x[1], res.fun
-        else:
-            # 回退网格
-            best_F = 1e300
-            best_r1, best_r2 = np.nan, np.nan
-            for r1_cand in np.linspace(max(0, r - L2 - L3), min(L1, r), 20):
-                r2_max = min(L2, r - r1_cand)
-                r2_min = max(0, r - r1_cand - L3)
-                if r2_min > r2_max:
-                    continue
-                for r2_cand in np.linspace(r2_min, r2_max, 20):
-                    F = objective([r1_cand, r2_cand])
-                    if F < best_F:
-                        best_F = F
-                        best_r1, best_r2 = r1_cand, r2_cand
-            return best_r1, best_r2, best_F
-    except Exception:
-        return np.nan, np.nan, 1e300
+    F_val = total_free_energy_4domain(r, r1, r2, r3, n1, n2, n3, n4)
+    return r1, r2, r3, F_val
 
 
-def Optimize_single_point_3domain(r):
+def Optimize_single_point_4domain(r):
     """对单个r进行优化，返回结果列表（供并行调用）"""
-    n_min = np.array([0.0, 0.0, 0.0])
-    n_max = np.array([1.0, 1.0, 1.0])
-    best_n = np.array([0.5, 0.5, 0.5])
-    best_r1, best_r2 = np.nan, np.nan
+    n_min = np.array([0.0, 0.0, 0.0, 0.0])
+    n_max = np.array([1.0, 1.0, 1.0, 1.0])
+    best_n = np.array([0.5, 0.5, 0.5, 0.5])
+    best_r1, best_r2, best_r3 = np.nan, np.nan, np.nan
     best_F = float('inf')
 
     N = init_points
@@ -214,28 +187,32 @@ def Optimize_single_point_3domain(r):
         n1_vals = np.linspace(n_min[0], n_max[0], N)
         n2_vals = np.linspace(n_min[1], n_max[1], N)
         n3_vals = np.linspace(n_min[2], n_max[2], N)
+        n4_vals = np.linspace(n_min[3], n_max[3], N)
 
         level_best_F = float('inf')
         level_best_n = None
         level_best_r1 = None
         level_best_r2 = None
+        level_best_r3 = None
 
         for n1 in n1_vals:
             for n2 in n2_vals:
                 for n3 in n3_vals:
-                    r1_opt, r2_opt, F_val = optimize_r1r2_given_n(r, n1, n2, n3)
-                    if F_val < level_best_F:
-                        level_best_F = F_val
-                        level_best_r1 = r1_opt
-                        level_best_r2 = r2_opt
-                        level_best_n = (n1, n2, n3)
+                    for n4 in n4_vals:
+                        r1_opt, r2_opt, r3_opt, F_val = optimize_r1r2r3_given_n(r, n1, n2, n3, n4)
+                        if F_val < level_best_F:
+                            level_best_F = F_val
+                            level_best_r1 = r1_opt
+                            level_best_r2 = r2_opt
+                            level_best_r3 = r3_opt
+                            level_best_n = (n1, n2, n3, n4)
 
         if level_best_F == float('inf'):
-            return [r, np.nan, np.nan, np.nan, np.nan, np.nan]
+            return [r, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
 
         if level_best_F < best_F:
             best_F = level_best_F
-            best_r1, best_r2 = level_best_r1, level_best_r2
+            best_r1, best_r2, best_r3 = level_best_r1, level_best_r2, level_best_r3
             best_n = level_best_n
 
         if level == refine_levels:
@@ -244,6 +221,7 @@ def Optimize_single_point_3domain(r):
         idx1 = np.argmin(np.abs(n1_vals - best_n[0]))
         idx2 = np.argmin(np.abs(n2_vals - best_n[1]))
         idx3 = np.argmin(np.abs(n3_vals - best_n[2]))
+        idx4 = np.argmin(np.abs(n4_vals - best_n[3]))
 
         left1 = n1_vals[max(0, idx1-1)]
         right1 = n1_vals[min(N-1, idx1+1)]
@@ -251,19 +229,21 @@ def Optimize_single_point_3domain(r):
         right2 = n2_vals[min(N-1, idx2+1)]
         left3 = n3_vals[max(0, idx3-1)]
         right3 = n3_vals[min(N-1, idx3+1)]
+        left4 = n4_vals[max(0, idx4-1)]
+        right4 = n4_vals[min(N-1, idx4+1)]
 
-        n_min = np.array([left1, left2, left3])
-        n_max = np.array([right1, right2, right3])
+        n_min = np.array([left1, left2, left3, left4])
+        n_max = np.array([right1, right2, right3, right4])
 
         if np.max(n_max - n_min) < tol:
             break
 
         N = refine_points
 
-    return [r, best_r1, best_r2, best_n[0], best_n[1], best_n[2]]
+    return [r, best_r1, best_r2, best_r3, best_n[0], best_n[1], best_n[2], best_n[3]]
 
 
-# ---------- 力计算与可视化函数 ----------
+# ---------- 力计算与可视化函数（扩展为4条曲线） ----------
 def MS_force(r_i, L_ci):
     x = np.asarray(r_i, dtype=float) / np.asarray(L_ci, dtype=float)
     force = np.where(x < 1.0,
@@ -272,10 +252,11 @@ def MS_force(r_i, L_ci):
     return force
 
 
-def plot_n_curves(ax, r, n1, n2, n3, title):
+def plot_n_curves(ax, r, n1, n2, n3, n4, title):
     ax.plot(r, n1, color='blue', linewidth=lines_linewidth, label='$n_1$', zorder=3)
     ax.plot(r, n2, color='red', linewidth=lines_linewidth, linestyle='--', label='$n_2$', zorder=3)
     ax.plot(r, n3, color='green', linewidth=lines_linewidth, linestyle='-.', label='$n_3$', zorder=3)
+    ax.plot(r, n4, color='orange', linewidth=lines_linewidth, linestyle=':', label='$n_4$', zorder=3)
     ax.set_xlabel('$r$', fontsize=label_fontsize)
     ax.set_ylabel('$n$', fontsize=label_fontsize)
     ax.set_title(title, fontsize=title_fontsize, pad=20)
@@ -290,10 +271,11 @@ def plot_n_curves(ax, r, n1, n2, n3, title):
         spine.set_linewidth(axes_linewidth)
 
 
-def plot_force_curves(ax, r, force1, force2, force3, title):
+def plot_force_curves(ax, r, force1, force2, force3, force4, title):
     ax.plot(r, force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
     ax.plot(r, force2, color='red', linewidth=lines_linewidth, linestyle='--', label='$f_2$', zorder=3)
     ax.plot(r, force3, color='green', linewidth=lines_linewidth, linestyle='-.', label='$f_3$', zorder=3)
+    ax.plot(r, force4, color='orange', linewidth=lines_linewidth, linestyle=':', label='$f_4$', zorder=3)
     ax.set_xlabel('$r$', fontsize=label_fontsize)
     ax.set_ylabel('$f$', fontsize=label_fontsize)
     ax.set_title(title, fontsize=title_fontsize, pad=20)
@@ -313,19 +295,15 @@ def plot_force_curves(ax, r, force1, force2, force3, title):
 # ---------- 主程序（并行部分，无tqdm） ----------
 def main():
     # 最大可能拉伸
-    r_max = (contour_length_Lci(1, xi_f1) +
-             contour_length_Lci(1, xi_f2) +
-             contour_length_Lci(1, xi_f3))
+    r_max = sum(contour_length_Lci(1, xi_f) for xi_f in xi_f_list)
     r_vals = np.linspace(0, 0.95 * r_max, r_grids)
 
     # 并行计算所有r点的优化结果
-    results = [None] * len(r_vals)  # 预分配保持顺序
-    print("开始并行计算...")
+    results = [None] * len(r_vals)
+    print("开始并行计算（4-domain）...")
     with ProcessPoolExecutor(max_workers=n_workers) as executor:
-        # 提交所有任务
-        future_to_idx = {executor.submit(Optimize_single_point_3domain, r): idx
+        future_to_idx = {executor.submit(Optimize_single_point_4domain, r): idx
                          for idx, r in enumerate(r_vals)}
-        # 收集结果，每100个打印一次进度
         completed = 0
         total = len(r_vals)
         for future in as_completed(future_to_idx):
@@ -334,62 +312,67 @@ def main():
                 results[idx] = future.result()
             except Exception as e:
                 print(f"Error at r index {idx}: {e}")
-                results[idx] = [r_vals[idx], np.nan, np.nan, np.nan, np.nan, np.nan]
+                results[idx] = [r_vals[idx], np.nan, np.nan, np.nan, np.nan, np.nan, np.nan, np.nan]
             completed += 1
             if completed % 100 == 0 or completed == total:
                 print(f"已完成 {completed}/{total} 个点")
 
-    # 将results整理为DataFrame
+    # 整理数据
     data_rows = []
     for res in results:
-        # res: [r, r1, r2, n1, n2, n3]
-        r_val, r1_opt, r2_opt, n1_opt, n2_opt, n3_opt = res
-        r3_opt = r_val - r1_opt - r2_opt if not np.isnan(r1_opt) else np.nan
-        data_rows.append([r_val, r1_opt, r2_opt, r3_opt, n1_opt, n2_opt, n3_opt])
+        # res: [r, r1, r2, r3, n1, n2, n3, n4]
+        r_val, r1_opt, r2_opt, r3_opt, n1_opt, n2_opt, n3_opt, n4_opt = res
+        r4_opt = r_val - r1_opt - r2_opt - r3_opt if not np.isnan(r1_opt) else np.nan
+        data_rows.append([r_val, r1_opt, r2_opt, r3_opt, r4_opt, n1_opt, n2_opt, n3_opt, n4_opt])
 
-    df = pd.DataFrame(data_rows, columns=['r', 'r1', 'r2', 'r3', 'n1', 'n2', 'n3'])
-    csv_filename = os.path.join(save_path, "3_domain_results.csv")
+    df = pd.DataFrame(data_rows, columns=['r', 'r1', 'r2', 'r3', 'r4', 'n1', 'n2', 'n3', 'n4'])
+    csv_filename = os.path.join(save_path, "4_domain_results.csv")
     df.to_csv(csv_filename, index=False)
     print(f"结果已保存至: {csv_filename}")
 
-    # ===== 可视化（与串行版完全相同） =====
+    # ===== 可视化 =====
     r = df['r'].values
     n1 = df['n1'].values
     n2 = df['n2'].values
     n3 = df['n3'].values
+    n4 = df['n4'].values
     r1 = df['r1'].values
     r2 = df['r2'].values
     r3 = df['r3'].values
+    r4 = df['r4'].values
 
     Lc1 = contour_length_Lci(n1, xi_f1)
     Lc2 = contour_length_Lci(n2, xi_f2)
     Lc3 = contour_length_Lci(n3, xi_f3)
+    Lc4 = contour_length_Lci(n4, xi_f4)
     force1 = MS_force(r1, Lc1)
     force2 = MS_force(r2, Lc2)
     force3 = MS_force(r3, Lc3)
+    force4 = MS_force(r4, Lc4)
 
     force1 = np.where(np.isfinite(force1), force1, np.nan)
     force2 = np.where(np.isfinite(force2), force2, np.nan)
     force3 = np.where(np.isfinite(force3), force3, np.nan)
+    force4 = np.where(np.isfinite(force4), force4, np.nan)
 
-    title = (f"$\\Delta E_1 = {DeltaE1:.1f},\\ \\Delta E_2 = {DeltaE2:.1f},\\ \\Delta E_3 = {DeltaE3:.1f}$\n"
-             f"$\\beta_2 = {beta2},\\ \\beta_3 = {beta3}$")
+    title = (f"$\\Delta E_1 = {DeltaE1:.1f},\\ \\Delta E_2 = {DeltaE2:.1f},\\ \\Delta E_3 = {DeltaE3:.1f},\\ \\Delta E_4 = {DeltaE4:.1f}$\n"
+             f"$\\beta_2 = {beta2},\\ \\beta_3 = {beta3},\\ \\beta_4 = {beta4}$")
 
     output_dir = os.path.join(save_path, "Figure")
     os.makedirs(output_dir, exist_ok=True)
 
     fig_n, ax_n = plt.subplots(1, 1, figsize=(12, 9))
-    plot_n_curves(ax_n, r, n1, n2, n3, title)
+    plot_n_curves(ax_n, r, n1, n2, n3, n4, title)
     plt.tight_layout()
-    n_output = os.path.join(output_dir, "3_domain_results_n.png")
+    n_output = os.path.join(output_dir, "4_domain_results_n.png")
     plt.savefig(n_output, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
     plt.close(fig_n)
     print(f"n 曲线已保存至: {n_output}")
 
     fig_f, ax_f = plt.subplots(1, 1, figsize=(12, 9))
-    plot_force_curves(ax_f, r, force1, force2, force3, title)
+    plot_force_curves(ax_f, r, force1, force2, force3, force4, title)
     plt.tight_layout()
-    f_output = os.path.join(output_dir, "3_domain_results_force.png")
+    f_output = os.path.join(output_dir, "4_domain_results_force.png")
     plt.savefig(f_output, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
     plt.close(fig_f)
     print(f"force 曲线已保存至: {f_output}")

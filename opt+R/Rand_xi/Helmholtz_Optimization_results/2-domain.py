@@ -85,8 +85,7 @@ plt.rcParams.update({
 
 # ============ 物理参数 ============
 xi_f1 = 5.0          # 第一个domain的折叠态长度
-k = 7.0              # k = xi_ui/xi_fi
-#alpha = 5.0          # alpha = delta_Ei/xi_fi
+alpha = 7.0              # alpha = xi_ui/xi_fi
 beta = 1.5           # beta = xi_f2/xi_f1
 force_limit = 250.0    # 力曲线y轴上限
 E0 = 220.0
@@ -108,9 +107,9 @@ def energy_term_U(n_i, DeltaEi):
 
 def contour_length_Lci(n_i, xi_fi):
     """
-    轮廓长度: L_{ci}(n_i) = ξ_fi + n_i (k - 1)ξ_fi
+    轮廓长度: L_{ci}(n_i) = ξ_fi + n_i (alpha - 1)ξ_fi
     """
-    return xi_fi + n_i * (k - 1) * xi_fi
+    return xi_fi + n_i * (alpha - 1) * xi_fi
 
 def end_to_end_factor_x_i(r_i, n_i, xi_fi):
     """
@@ -135,12 +134,12 @@ def single_domain_free_energy(r_i, n_i, DeltaEi, xi_fi):
 
 def free_energy_2_domain(r, r1, n1, n2):
     # 第1个domain的能量
-    delta_E1 = E0 + delta
+    delta_E1 = E0
     energy1 = single_domain_free_energy(r1, n1, delta_E1, xi_f1)
     # 第2个domain的能量
     r2 = r - r1
     xi_f2 = beta * xi_f1
-    delta_E2 = E0
+    delta_E2 = E0 + delta
     energy2 = single_domain_free_energy(r2, n2, delta_E2, xi_f2)
     total = energy1 + energy2
     if not np.isfinite(total):
@@ -323,7 +322,7 @@ def main():
 
     # 标题
     #title = f"α = {alpha}, β = {beta}"
-    title = f"$\Delta E_1 = {E0 + delta}, \Delta E_2 = {E0}$, β = 1"
+    title = f"$\Delta E_1 = {E0}, \Delta E_2 = {E0 + delta}$, β = 1.5"
 
     # 创建Figure文件夹
     output_dir = os.path.join(save_path, "Figure")

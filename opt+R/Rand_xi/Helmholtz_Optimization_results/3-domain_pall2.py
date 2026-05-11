@@ -36,7 +36,7 @@ xtick_major_size = 10
 ytick_major_size = 10
 grid_linewidth = 1
 grid_alpha = 0.4
-lines_linewidth = 1
+lines_linewidth = 5
 lines_markersize = 15
 
 xtick_direction = 'in'
@@ -84,13 +84,13 @@ plt.rcParams.update({
 })
 
 # ============ 物理参数（版本B） ============
-xi_f1 = 5.0          # 第一个domain的折叠态长度
-alpha = 7.0              # alpha = xi_ui/xi_fi
+xi_f1 = 15.0          # 第一个domain的折叠态长度
+alpha = 2.0              # alpha = xi_ui/xi_fi
 beta2 = 1.5          # xi_f2 / xi_f1
 beta3 = 2.0          # xi_f3 / xi_f1
 force_limit = 20.0   # 力曲线y轴上限
-E0 = 2.0
-Ek = 5.0             # 能量系数
+E0 = 5.0
+Ek = 2.0             # 能量系数
 
 # 三个域的具体参数
 xi_f2 = beta2 * xi_f1
@@ -160,45 +160,12 @@ def optimize_r1r2_given_n(r, n1, n2, n3):
     L2 = contour_length_Lci(n2, xi_f_list[1])
     L3 = contour_length_Lci(n3, xi_f_list[2])
 
-    if r < 0 or r > L1 + L2 + L3:
-        return np.nan, np.nan, 1e300
+    r1 = r*L1/(L1 + L2 + L3)
+    r2 = r*L2/(L1 + L2 + L3)
 
-    def objective(r12):
-        r1v, r2v = r12[0], r12[1]
-        return total_free_energy_3domain(r, r1v, r2v, n1, n2, n3)
+    F_val = total_free_energy_3domain(r, r1, r2, n1, n2, n3)
 
-    bounds = [(0, L1), (0, L2)]
-    A = [[1, 1], [-1, -1]]
-    b_ub = [r, -(r - L3)]
-    linear_constraint = LinearConstraint(A, lb=-np.inf, ub=b_ub)
-
-    r1_guess = min(L1, max(0, r / 3))
-    r2_guess = min(L2, max(0, (r - r1_guess) / 2))
-    x0 = [r1_guess, r2_guess]
-
-    try:
-        res = minimize(objective, x0, method='SLSQP',
-                       bounds=bounds, constraints=linear_constraint,
-                       options={'ftol': 1e-9, 'disp': False})
-        if res.success and np.isfinite(res.fun):
-            return res.x[0], res.x[1], res.fun
-        else:
-            # 回退网格
-            best_F = 1e300
-            best_r1, best_r2 = np.nan, np.nan
-            for r1_cand in np.linspace(max(0, r - L2 - L3), min(L1, r), 20):
-                r2_max = min(L2, r - r1_cand)
-                r2_min = max(0, r - r1_cand - L3)
-                if r2_min > r2_max:
-                    continue
-                for r2_cand in np.linspace(r2_min, r2_max, 20):
-                    F = objective([r1_cand, r2_cand])
-                    if F < best_F:
-                        best_F = F
-                        best_r1, best_r2 = r1_cand, r2_cand
-            return best_r1, best_r2, best_F
-    except Exception:
-        return np.nan, np.nan, 1e300
+    return r1, r2, F_val
 
 
 def Optimize_single_point_3domain(r):

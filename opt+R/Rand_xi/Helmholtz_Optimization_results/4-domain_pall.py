@@ -36,7 +36,7 @@ ytick_major_size = 10
 grid_linewidth = 1
 grid_alpha = 0.4
 lines_linewidth = 5
-lines_markersize = 15
+lines_markersize = 5
 
 xtick_direction = 'in'
 ytick_direction = 'in'
@@ -253,10 +253,11 @@ def MS_force(r_i, L_ci):
 
 
 def plot_n_curves(ax, r, n1, n2, n3, n4, title):
-    ax.plot(r, n1, color='blue', linewidth=lines_linewidth, label='$n_1$', zorder=3)
-    ax.plot(r, n2, color='red', linewidth=lines_linewidth, linestyle='--', label='$n_2$', zorder=3)
-    ax.plot(r, n3, color='green', linewidth=lines_linewidth, linestyle='-.', label='$n_3$', zorder=3)
-    ax.plot(r, n4, color='orange', linewidth=lines_linewidth, linestyle=':', label='$n_4$', zorder=3)
+    # 使用 scatter 散点图
+    ax.scatter(r, n1, color='blue', s=lines_markersize**2, label='$n_1$', zorder=3, alpha=0.7)
+    ax.scatter(r, n2, color='red', s=lines_markersize**2, marker='s', label='$n_2$', zorder=3, alpha=0.7)
+    ax.scatter(r, n3, color='green', s=lines_markersize**2, marker='^', label='$n_3$', zorder=3, alpha=0.7)
+    ax.scatter(r, n4, color='orange', s=lines_markersize**2, marker='D', label='$n_4$', zorder=3, alpha=0.7)
     ax.set_xlabel('$r$', fontsize=label_fontsize)
     ax.set_ylabel('$n$', fontsize=label_fontsize)
     ax.set_title(title, fontsize=title_fontsize, pad=20)
@@ -270,12 +271,11 @@ def plot_n_curves(ax, r, n1, n2, n3, n4, title):
     for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)
 
-
 def plot_force_curves(ax, r, force1, force2, force3, force4, title):
-    ax.plot(r, force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
-    ax.plot(r, force2, color='red', linewidth=lines_linewidth, linestyle='--', label='$f_2$', zorder=3)
-    ax.plot(r, force3, color='green', linewidth=lines_linewidth, linestyle='-.', label='$f_3$', zorder=3)
-    ax.plot(r, force4, color='orange', linewidth=lines_linewidth, linestyle=':', label='$f_4$', zorder=3)
+    ax.scatter(r, force1, color='blue', s=lines_markersize**2, label='$f_1$', zorder=3, alpha=0.7)
+    ax.scatter(r, force2, color='red', s=lines_markersize**2, marker='s', label='$f_2$', zorder=3, alpha=0.7)
+    ax.scatter(r, force3, color='green', s=lines_markersize**2, marker='^', label='$f_3$', zorder=3, alpha=0.7)
+    ax.scatter(r, force4, color='orange', s=lines_markersize**2, marker='D', label='$f_4$', zorder=3, alpha=0.7)
     ax.set_xlabel('$r$', fontsize=label_fontsize)
     ax.set_ylabel('$f$', fontsize=label_fontsize)
     ax.set_title(title, fontsize=title_fontsize, pad=20)
@@ -290,7 +290,6 @@ def plot_force_curves(ax, r, force1, force2, force3, force4, title):
     ax.set_ylim(0, force_limit)
     for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)
-
 
 # ---------- 主程序（并行部分，无tqdm） ----------
 def main():

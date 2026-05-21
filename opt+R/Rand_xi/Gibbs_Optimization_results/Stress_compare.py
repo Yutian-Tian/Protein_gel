@@ -96,9 +96,13 @@ xi_f = 5.0  # 折叠态持续长度
 alpha = 7.0      # 解折叠系数
 Nmax = 6.0     # domain 的数量
 k1 = 10.0
-k2 = 1.35
-R0 = 10.0    # 初始首末端距离
+k2 = 1.5
 f_limit = 10.0
+
+# 初始拉伸长度
+R10 = 5.0
+R20 = 15.0
+R30 = 25.0
 
 
 def contourLength(force, N):
@@ -169,7 +173,7 @@ def StressOptimization(R0, r_val, f_val):
 
 def create_visualization(save_dir):
     """创建可视化图表"""
-    f_vals = np.linspace(0, f_limit, 1000)
+    f_vals = np.linspace(0, f_limit, 5000)
 
     # ============ 创建3组3-chain model的本构曲线：N=2, N=4, N=6============
     fig, ax = plt.subplots(1, 1, figsize=(12, 9))
@@ -179,22 +183,22 @@ def create_visualization(save_dir):
     r1_vals = end_to_end_factor2(f_vals)*contourLength(f_vals, 2)
     valid_mask1 = ~np.isnan(f_vals)
     if np.any(valid_mask1):
-        lambda_1, sigma1 = StressOptimization(R0, r1_vals[valid_mask1], f_vals[valid_mask1])
-    ax.plot(lambda_1, sigma1, 'o-', markersize=3, color='red', linewidth=lines_linewidth, label='N = 2', zorder=2)
+        lambda_1, sigma1 = StressOptimization(R10, r1_vals[valid_mask1], f_vals[valid_mask1])
+    ax.plot(lambda_1, R10*sigma1, 'o-', markersize=3, color='red', linewidth=lines_linewidth, label='N = 2', zorder=2)
 
     # 第2组
     r2_vals = end_to_end_factor2(f_vals)*contourLength(f_vals, 4)
     valid_mask2 = ~np.isnan(f_vals)
     if np.any(valid_mask2):
-        lambda_2, sigma2 = StressOptimization(2*R0, r2_vals[valid_mask2], f_vals[valid_mask2])
-    ax.plot(lambda_2, 2*sigma2, '-', markersize=3, color='blue', linewidth=lines_linewidth, label='N = 4', zorder=2)
+        lambda_2, sigma2 = StressOptimization(R20, r2_vals[valid_mask2], f_vals[valid_mask2])
+    ax.plot(lambda_2, R20*sigma2, '-', markersize=3, color='blue', linewidth=lines_linewidth, label='N = 4', zorder=2)
 
     # 第3组
     r3_vals = end_to_end_factor2(f_vals)*contourLength(f_vals, 6)
     valid_mask3 = ~np.isnan(f_vals)
     if np.any(valid_mask3):
-        lambda_3, sigma3 = StressOptimization(3*R0, r3_vals[valid_mask3], f_vals[valid_mask3])
-    ax.plot(lambda_3, 3*sigma3, 's-', markersize=3, color='purple', linewidth=lines_linewidth, label='N = 6', zorder=2)
+        lambda_3, sigma3 = StressOptimization(R30, r3_vals[valid_mask3], f_vals[valid_mask3])
+    ax.plot(lambda_3, R30*sigma3, 's-', markersize=3, color='purple', linewidth=lines_linewidth, label='N = 6', zorder=2)
 
     # 设置标签和标题
     ax.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)
@@ -210,8 +214,8 @@ def create_visualization(save_dir):
                edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax.set_xlim(1.0, 2.0)
-    ax.set_ylim(0.0, 50.0)
+    ax.set_xlim(1.0, 15.0)
+    ax.set_ylim(0.0, 1000.0)
     
     # 设置刻度参数
     ax.tick_params(axis='both', which='major', 

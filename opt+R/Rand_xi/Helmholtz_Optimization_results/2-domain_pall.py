@@ -91,10 +91,10 @@ plt.rcParams.update({
 # ============ 物理参数 ============
 xi_f1 = 5.0          # 第一个domain的折叠态长度
 alpha = 7.0              # alpha = xi_ui/xi_fi
-beta = 1.5           # beta = xi_f2/xi_f1
-force_limit = 250.0    # 力曲线y轴上限
-E0 = 220.0
-delta = 20.0
+beta = 1.3           # beta = xi_f2/xi_f1
+force_limit = 10.0    # 力曲线y轴上限
+E0 = 5.0
+delta = 1.0
 
 # 优化参数
 r_grids = 1000
@@ -267,7 +267,7 @@ def plot_force_curves(ax, r, force1, force2, title):
                    direction=xtick_direction, top=xtick_top, right=ytick_right,
                    bottom=True, left=True, width=xtick_major_width*0.75, length=xtick_major_size*0.5)
     ax.minorticks_on()
-    ax.set_xlim(0, r[-1])
+    ax.set_xlim(0, 50.0)
     ax.set_ylim(0, force_limit)
     for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)

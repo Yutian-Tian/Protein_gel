@@ -1,6 +1,6 @@
 """
-目的：探究不同参数下的domain的解折叠顺序，参数包括xi_f1,xi_f2,E1,E2
-系统：包含2个domain
+目的：探究不同参数下的domain的解折叠顺序，参数包括xi_f1,xi_f2,E1,E2,l_pf
+系统：包含2个domain，驻留长度随解折叠变化
 主题：约束下优化系统的Helmholtz自由能
 新增：可视化部分，绘制n1,n2和力曲线，风格与参考代码一致
 """
@@ -85,17 +85,22 @@ plt.rcParams.update({
 
 # ============ 物理参数 ============
 xi_f1 = 5.0          # 第一个domain的折叠态长度
-alpha = 7.0              # alpha = xi_ui/xi_fi
-beta = 1.5           # beta = xi_f2/xi_f1
-force_limit = 50.0    # 力曲线y轴上限
-E0 = 220.0
-delta = 20.0
+l_pf = 1.0          # 无量纲驻留长度，折叠态，l_pf/l_pu
+alpha = 8.0              # alpha = xi_ui/xi_fi
+beta = 1.1           # beta = xi_f2/xi_f1
+force_limit = 250.0    # 力曲线y轴上限
+E0 = 8.3
+delta = 1.0
+
+G = 110.0             # 弹性模量/力标度系数
+lp = 0.8             # 驻留长度l_pu/拉伸标度系数
 
 # 优化参数
 r_grids = 1000
 
 # 设置存储路径
 save_path = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Helmholtz_Optimization_results/2-domain_results"
+dataFile = "/home/tyt/project/Single-chain/opt+R/I27_Data.xlsx"
 os.makedirs(save_path, exist_ok=True)
 
 # ---------- 辅助函数（优化部分） ----------
@@ -105,30 +110,32 @@ def energy_term_U(n_i, DeltaEi):
     """
     return DeltaEi * n_i - DeltaEi * np.cos(2 * np.pi * n_i)
 
-def contour_length_Lci(n_i, xi_fi):
+def contour_length(n_i, xi_fi):
     """
     轮廓长度: L_{ci}(n_i) = ξ_fi + n_i (alpha - 1)ξ_fi
     """
     return xi_fi + n_i * (alpha - 1) * xi_fi
 
-def end_to_end_factor_x_i(r_i, n_i, xi_fi):
+def end_to_end_factor(r_i, n_i, xi_fi):
     """
     端到端因子: x_i(r_i, n_i) = r_i / L_{ci}(n_i)
     """
-    L_ci = contour_length_Lci(n_i, xi_fi)
+    L_ci = contour_length(n_i, xi_fi)
     return r_i / L_ci
 
-def WLC_free_energy(x_i, L_ci):
+def WLC_free_energy(x_i, n_i, xi_fi):
     if x_i >= 1.0 - 1e-12:          # 更保守的阈值
         return 1e300                 # 极大有限值
-    return 0.25 * L_ci * (x_i**2 * (3.0 - 2.0 * x_i) / (1.0 - x_i))
+    L_ci = contour_length(n_i, xi_fi)
+    l_pi = n_i + (1 - n_i)*l_pf
+    return 0.25*L_ci*(x_i**2*(3.0 - 2.0*x_i)/(1.0 - x_i))/l_pi
 
 def single_domain_free_energy(r_i, n_i, DeltaEi, xi_fi):
-    L_ci = contour_length_Lci(n_i, xi_fi)
+    L_ci = contour_length(n_i, xi_fi)
     if r_i < 0 or r_i > L_ci:
         return 1e300
     x_i = r_i / L_ci
-    F_wlc = WLC_free_energy(x_i, L_ci)
+    F_wlc = WLC_free_energy(x_i, n_i, xi_fi)
     Ui = energy_term_U(n_i, DeltaEi)
     return F_wlc + Ui
 
@@ -172,8 +179,8 @@ def Optimize_single_point(r, init_points=15, refine_levels=6, refine_points=15, 
         # 遍历当前网格
         for n1 in n1_grid:
             for n2 in n2_grid:
-                Lc1 = contour_length_Lci(n1, xi_f1)
-                Lc2 = contour_length_Lci(n2, beta * xi_f1)
+                Lc1 = contour_length(n1, xi_f1)
+                Lc2 = contour_length(n2, beta * xi_f1)
                 r1_lower = max(0.0, r - min(r, Lc2))
                 r1_upper = min(Lc1, r)
                 if r1_lower > r1_upper:
@@ -227,15 +234,50 @@ def Optimize_single_point(r, init_points=15, refine_levels=6, refine_points=15, 
     return np.array([r, best_r1, best_n1, best_n2])
 
 # ---------- 可视化函数（新增） ----------
-def MS_force(r, L_c):
+def MS_force(r, L_c, n):
     """
     Marko–Siggia 力（WLC模型近似）
     """
     x = np.asarray(r, dtype=float) / np.asarray(L_c, dtype=float)
+    l_p = n + (1 - n)*l_pf
     force = np.where(x < 1.0,
-                     0.25 * ((1 - x) ** (-2) - 1 + 4 * x),
+                     0.25*((1 - x)**(-2) - 1 + 4*x)/l_p,
                      1e15)
     return force
+
+def read_excel_data(file_path):
+    """
+    读取单个sheet的extension和force数据，转换为浮点数。
+    假设第一列为extension，第二列为force。
+    自动处理文本类型，无法转换的值将被设为NaN并删除。
+    """
+    try:
+        df = pd.read_excel(file_path, header=0)
+    except Exception as e:
+        print(f"读取数据失败: {e}")
+        return None, None
+
+    if df.shape[1] < 2:
+        print(f"警告: 工作表列数不足2，跳过")
+        return None, None
+
+    # 提取前两列并尝试转换为数值
+    extension_raw = df.iloc[:, 2]
+    force_raw = df.iloc[:, 1]
+
+    extension = pd.to_numeric(extension_raw, errors='coerce')
+    force = pd.to_numeric(force_raw, errors='coerce')
+
+    # 删除缺失值
+    valid_mask = ~(extension.isna() | force.isna())
+    extension = extension[valid_mask].values
+    force = force[valid_mask].values
+
+    if len(extension) == 0:
+        print(f"警告: 工作表无有效数值数据，跳过")
+        return None, None
+
+    return extension, force
 
 def plot_n_curves(ax, r, n1, n2, title):
     """绘制n1, n2 vs r曲线"""
@@ -258,11 +300,15 @@ def plot_n_curves(ax, r, n1, n2, title):
         spine.set_linewidth(axes_linewidth)
 
 def plot_force_curves(ax, r, force1, force2, title):
+    """读取实验数据：I27"""
+    expr, expf = read_excel_data(dataFile)
     """绘制f1, f2 vs r曲线"""
-    ax.plot(r, force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
-    ax.plot(r, force2, color='red', linewidth=lines_linewidth, linestyle='--', label='$f_2$', zorder=3)
-    ax.set_xlabel('Extension $r$', fontsize=label_fontsize)
-    ax.set_ylabel('Force $f$', fontsize=label_fontsize)
+    ax.plot(lp*r, G*force1, color='blue', linewidth=lines_linewidth, label='$f_1$', zorder=3)
+    ax.plot(lp*r, G*force2, color='red', linewidth=lines_linewidth, linestyle='-', label='$f_2$', zorder=3)
+    # 实验数据
+    ax.scatter(expr, expf, s=40, label=f'Experiment:I27', marker = "o", zorder = 4)
+    ax.set_xlabel('$r \quad [\\text{nm}]$', fontsize=label_fontsize)
+    ax.set_ylabel('$f \quad [\\text{pN}]$', fontsize=label_fontsize)
     ax.set_title(title, fontsize=title_fontsize, pad=20)
     ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
     # 刻度设置
@@ -273,7 +319,7 @@ def plot_force_curves(ax, r, force1, force2, title):
                    direction=xtick_direction, top=xtick_top, right=ytick_right,
                    bottom=True, left=True, width=xtick_major_width*0.75, length=xtick_major_size*0.5)
     ax.minorticks_on()
-    ax.set_xlim(0, r[-1])
+    ax.set_xlim(0, 0.9*lp*r[-1])
     ax.set_ylim(0, force_limit)
     for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)
@@ -281,7 +327,7 @@ def plot_force_curves(ax, r, force1, force2, title):
 # ---------- 主程序 ----------
 def main():
     # 计算拉伸的最大可能值（两个域完全伸展时的总轮廓长度）
-    r_max = contour_length_Lci(1, xi_f1) + contour_length_Lci(1, beta * xi_f1)
+    r_max = contour_length(1, xi_f1) + contour_length(1, beta * xi_f1)
     r_vals = np.linspace(0, 0.95 * r_max, r_grids)
 
     results = []
@@ -297,7 +343,7 @@ def main():
 
     # 保存为 CSV 文件
     df = pd.DataFrame(results, columns=['r', 'r1', 'r2', 'n1', 'n2'])
-    csv_filename = os.path.join(save_path, "2_domain_results.csv")
+    csv_filename = os.path.join(save_path, "2_domain_results_change_lp.csv")
     df.to_csv(csv_filename, index=False)
     print(f"结果已保存至: {csv_filename}")
 
@@ -311,10 +357,10 @@ def main():
 
     # 计算轮廓长度和力
     xi_f2 = beta * xi_f1
-    Lc1 = contour_length_Lci(n1, xi_f1)
-    Lc2 = contour_length_Lci(n2, xi_f2)
-    force1 = MS_force(r1, Lc1)
-    force2 = MS_force(r2, Lc2)
+    Lc1 = contour_length(n1, xi_f1)
+    Lc2 = contour_length(n2, xi_f2)
+    force1 = MS_force(r1, Lc1, n1)
+    force2 = MS_force(r2, Lc2, n2)
 
     # 将无穷大力替换为NaN
     force1 = np.where(np.isfinite(force1), force1, np.nan)
@@ -322,7 +368,7 @@ def main():
 
     # 标题
     #title = f"α = {alpha}, β = {beta}"
-    title = f"$\Delta E_1 = {E0}, \Delta E_2 = {E0 + delta}$, β = 1.5"
+    title = f"$\Delta E_1 = {E0}, \Delta E_2 = {E0 + delta}$, β = {beta}"
 
     # 创建Figure文件夹
     output_dir = os.path.join(save_path, "Figure")
@@ -332,7 +378,7 @@ def main():
     fig_n, ax_n = plt.subplots(1, 1, figsize=(12, 9))
     plot_n_curves(ax_n, r, n1, n2, title)
     plt.tight_layout()
-    n_output = os.path.join(output_dir, "2_domain_results_n.png")
+    n_output = os.path.join(output_dir, "2_domain_change_lp_n.png")
     plt.savefig(n_output, dpi=savefig_dpi, bbox_inches='tight',
                 facecolor='white', edgecolor='none')
     plt.close(fig_n)
@@ -342,7 +388,7 @@ def main():
     fig_f, ax_f = plt.subplots(1, 1, figsize=(12, 9))
     plot_force_curves(ax_f, r, force1, force2, title)
     plt.tight_layout()
-    f_output = os.path.join(output_dir, "2_domain_results_force.png")
+    f_output = os.path.join(output_dir, "2_domain_change_lp_force.png")
     plt.savefig(f_output, dpi=savefig_dpi, bbox_inches='tight',
                 facecolor='white', edgecolor='none')
     plt.close(fig_f)

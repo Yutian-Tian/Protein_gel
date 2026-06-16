@@ -90,15 +90,12 @@ plt.rcParams.update({
 })
 
 # ============ 参数设置 ============
-xi_f = 10.0  # 折叠态轮廓长度
-xi_u = 20.0  # 展开态轮廓长度
-DeltaE = 10.0  # 能量差 ΔE
-U0 = 20.0     # 周期性势阱深度 U0
+xi_f = 5.0  # 折叠态轮廓长度
+alpha = 7.0 # 解折叠比 
+DeltaE = 13.0  # 能量差 ΔE
 pi = np.pi
-delta = 1/(2*np.pi)*np.arcsin(- DeltaE/(4*np.pi*U0))
 f_min = 0.0
-f_max = 15.0
-N = 1.0  # 折叠域的数量
+f_max = 6.0
 f_grid = 200
 r_grid = 400
 n_grid = 200
@@ -106,7 +103,7 @@ n_grid = 200
 # ============ 辅助函数定义 ============
 def Lc(n):
     """轮廓长度作为n的函数"""
-    return N*xi_f + n * (xi_u - xi_f)
+    return xi_f + n * (alpha - 1)*xi_f
 
 def x(r, n):
     """端到端距离与轮廓长度之比"""
@@ -143,14 +140,28 @@ def F_WLC(r, n):
     term2 = (2 * Lc_val) / (pi * (1 - x_val**2))
     return term1 + term2
 
+def F_MS(r, n):
+    """WLC自由能"""
+    Lc_val = Lc(n)
+    x_val = x(r, n)
+    x_vals = np.clip(x_val, 0.001, 0.999)
+    return 0.25*Lc_val*x_vals**2*(3 - 2*x_vals)/(1 - x_vals)
+
+
+def force_MS(r,n):
+    Lc_val = Lc(n)
+    x_val = x(r, n)
+    x_vals = np.clip(x_val, 0.001, 0.999)
+    return 0.25*((1 - x_vals)**(-2) + 4*x_vals - 1.0)
+
+
 def U(n):
     """周期性势能项"""
-    n1 = n + delta
-    return DeltaE * n - U0 * np.cos(2 * pi * n1)
+    return DeltaE * n - DeltaE * np.cos(2 * pi * n)
 
 def F_total(r, n):
     """总自由能"""
-    return F_WLC(r, n) + U(n)
+    return F_MS(r, n) + U(n)
 
 def F_modified(r, n, f):
     """修正自由能：F(r,n) - f·r"""
@@ -178,9 +189,9 @@ def simulate_minimize_F_modified(f_values, r_points=200, n_points=100):
     
     # 创建r和n的网格
     r_min = 0.0
-    r_max = 0.95 * N * xi_u  # r的最大值
+    r_max = 0.95*alpha*xi_f  # r的最大值
     r_vals = np.linspace(r_min, r_max, r_points)
-    n_vals = np.linspace(0, N, n_points)
+    n_vals = np.linspace(0, 1.0, n_points)
     
     for f in f_values:
         min_F = np.inf
@@ -285,10 +296,10 @@ def main():
     pu_theory_vals1 = np.array([pu_theory(f, DeltaEt1, rs1) for f in f_values])
     pu_theory_vals2 = np.array([pu_theory(f, DeltaEt2, rs2) for f in f_values])
 
-    f_theory_vals = force_WLC(r_sim, N*pu_theory_vals1)
+    f_theory_vals = force_MS(r_sim, pu_theory_vals1)
     
     # 准备模拟的p_u(f)曲线
-    pu_sim = n_sim / N  # n_u/N
+    pu_sim = n_sim   # n_u/N
     
     # ============ 科研风格可视化 ============
     # 创建图形
@@ -297,21 +308,21 @@ def main():
     # 1. p_u-f 和 n_u/N-f 曲线
     ax1 = axes[0]
     # 模拟的n_u/N-f曲线
-    ax1.plot(f_values, pu_sim, color='red', linewidth=lines_linewidth, label=r'Optimization: $n_u/N$')
-    # 理论p_u-f曲线
-    ax1.plot(f_values, pu_theory_vals1, color='blue', linewidth=lines_linewidth, linestyle='--', label=r'Theory 1: $p_u(f)$')
-    ax1.plot(f_values, pu_theory_vals2, color='purple', linewidth=lines_linewidth, linestyle='--', label=r'Theory 2: $p_u(f)$')
+    ax1.plot(f_values, pu_sim, color='red', linewidth=lines_linewidth, label=r'Optimization')
     
     # 标记跃变点
     if f_jump is not None:
         # 找到最接近跃变力的索引
         jump_idx = np.argmin(np.abs(f_values - f_jump))
         ax1.scatter(f_values[jump_idx], pu_sim[jump_idx], color='purple', 
-                   s=200, zorder=5, label=f'Jump: $f$={f_jump:.2f}')
+                   s=200, zorder=5, label=f'$f_t$={f_jump:.2f}')
+        
+    ax1.plot(f_values, pu_theory_vals1, color='blue', linewidth=lines_linewidth, linestyle='--', label=f'$\Delta E_t$={DeltaEt1:.1f},$r_s$ = {rs1:.1f}')
+    ax1.plot(f_values, pu_theory_vals2, color='purple', linewidth=lines_linewidth, linestyle='--', label=f'$\Delta E_t$={DeltaEt2:.1f},$r_s$ = {rs2:.1f}')
     
     ax1.set_xlabel('Force $f$', fontsize=label_fontsize)
-    ax1.set_ylabel('Unfolding probability $p_u$', fontsize=label_fontsize)
-    ax1.set_title('Unfolding probability $p_u$ vs. force $f$', fontsize=title_fontsize, pad=20)
+    ax1.set_ylabel('Unfolding probability $n$', fontsize=label_fontsize)
+    ax1.set_title('Unfolding probability $n$ vs. force $f$', fontsize=title_fontsize, pad=20)
     
     # 设置网格
     ax1.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
@@ -320,7 +331,7 @@ def main():
     ax1.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax1.set_xlim(f_min, 10.0)
+    ax1.set_xlim(f_min, f_max)
     ax1.set_ylim(-0.1, 1.1)
     
     # 设置刻度
@@ -356,8 +367,8 @@ def main():
     ax2.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax2.set_xlim(0, N*xi_u)
-    ax2.set_ylim(-1.5, f_max)
+    ax2.set_xlim(0, alpha*xi_f)
+    ax2.set_ylim(-0.5, f_max)
     
     # 设置刻度
     ax2.tick_params(axis='both', which='major', 
@@ -403,14 +414,11 @@ def main():
     print("\n" + "="*80)
     print("参数设置:")
     print(f"  ξ_f = {xi_f}")
-    print(f"  ξ_u = {xi_u}")
     print(f"  ΔE = {DeltaE}")
-    print(f"  U0 = {U0}")
-    print(f"  N = {N}")
     print(f"\n跃变点信息:")
     print(f"  跃变力 f_jump = {f_jump:.4f}")
-    print(f"  跃变前: r_front = {r_front:.4f}, n_front = {n_front:.4f}, n_front/N = {n_front/N:.4f}")
-    print(f"  跃变后: r_behind = {r_behind:.4f}, n_behind = {n_behind:.4f}, n_behind/N = {n_behind/N:.4f}")
+    print(f"  跃变前: r_front = {r_front:.4f}, n_front = {n_front:.4f}, n_front/N = {n_front:.4f}")
+    print(f"  跃变后: r_behind = {r_behind:.4f}, n_behind = {n_behind:.4f}, n_behind/N = {n_behind:.4f}")
     print(f"\n理论参数:")
     print(f"  F(0,0) = {F00:.4f}")
     print(f"  F(r_behind, n_behind) = {F_behind:.4f}")

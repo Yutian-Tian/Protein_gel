@@ -89,14 +89,12 @@ plt.rcParams.update({
 })
 
 # ============ 参数设置 ============
-xi_f = 10.0  # 折叠态轮廓长度
-xi_u = 20.0  # 展开态轮廓长度
-DeltaE = 10.0  # 能量差 ΔE
+xi_f = 5.0  # 折叠态轮廓长度
+alpha = 7.0  # 
+DeltaE = 13.0  # 能量差 ΔE
 DeltaEt = 19.3
-U0 = 20.0
 rs = 9.060530  # 反应距离
 pi = np.pi
-delta = 1/(2*np.pi)*np.arcsin(- DeltaE/(4*np.pi*U0))
 
 # ============ 辅助函数定义 ============
 def pf_from_force(f):
@@ -142,7 +140,7 @@ def self_consistent_equations(f, r):
     pf = pf_from_force(f)
     
     # 计算L_c
-    Lc = xi_u - pf * (xi_u - xi_f)
+    xi_f + (1 - pf)*(alpha - 1)*xi_f
     
     # 检查Lc是否有效
     if Lc <= 0:
@@ -159,7 +157,7 @@ def self_consistent_equations(f, r):
         x = 0.001
     
     # 计算基于当前Lc和x的力
-    f_calc = -(pi**2 * x) / (Lc**2) + (4 * x) / (pi * (1 - x**2)**2)
+    f_calc = -(pi**2*x) / (Lc**2) + (4*x) / (pi*(1 - x**2)**2)
     
     # 返回残差：f - f_calc
     return f - f_calc
@@ -195,7 +193,7 @@ def solve_self_consistent(r, f_guess):
 
 def Lc(n):
     """轮廓长度作为n的函数"""
-    return xi_f + n * (xi_u - xi_f)
+    return xi_f + n*(alpha - 1)*xi_f
 
 def x(r, n):
     """端到端距离与轮廓长度之比"""
@@ -211,14 +209,27 @@ def F_WLC(r, n):
     term2 = (2 * Lc_val) / (pi * (1 - x_val**2))
     return term1 + term2
 
+def F_MS(r, n):
+    """WLC自由能"""
+    Lc_val = Lc(n)
+    x_val = x(r, n)
+    x_vals = np.clip(x_val, 0.001, 0.999)
+    return 0.25*Lc_val*x_vals**2*(3 - 2*x_vals)/(1 - x_vals)
+
+
+def force_MS(r,n):
+    Lc_val = Lc(n)
+    x_val = x(r, n)
+    x_vals = np.clip(x_val, 0.001, 0.999)
+    return 0.25*((1 - x_vals)**(-2) + 4*x_vals - 1.0)
+
 def U(n):
     """周期性势能项"""
-    n1 = n + delta 
-    return DeltaE * n - U0 * np.cos(2 * pi * n1)
+    return DeltaE * n - DeltaE * np.cos(2 * pi * n)
 
 def F_total(r, n):
     """总自由能"""
-    return F_WLC(r, n) + U(n)
+    return F_MS(r, n) + U(n)
 
 def f_WLC(r, n):
     """WLC力"""
@@ -260,7 +271,7 @@ def simulate_n_f_scan(r_values, n_points=1000):
             n_opt = n_grid[min_idx]
         
         # 计算对应的力
-        f_val = f_WLC(r, n_opt)
+        f_val = F_MS(r, n_opt)
         
         n_sim.append(n_opt)
         f_sim.append(f_val)
@@ -308,8 +319,8 @@ def theoretical_n_f_fsolve(r_values):
 def main():
     # 创建r值数组
     r_min = 0.0
-    r_max = 0.95 * xi_u  # 避免r=0和r>=Lc的边界问题
-    r_values = np.linspace(r_min, r_max, 200)  # 减少点数以加快计算
+    r_max = 0.95*alpha*xi_f  # 避免r=0和r>=Lc的边界问题
+    r_values = np.linspace(r_min, r_max, 500)  # 减少点数以加快计算
     
     # 计算模拟结果（使用均匀扫描）
     print("开始模拟计算...")
@@ -318,7 +329,7 @@ def main():
     
     # 计算理论结果（基于图片中的自洽方程，使用fsolve）
     print("开始理论计算（使用fsolve，连续迭代）...")
-    n_theory, f_theory = theoretical_n_f_fsolve(r_values)
+    # n_theory, f_theory = theoretical_n_f_fsolve(r_values)
     print("理论计算完成")
     
     # ============ 科研风格可视化 ============
@@ -330,12 +341,12 @@ def main():
     # 模拟曲线 - 使用变量中定义的线宽
     ax1.plot(r_values, n_sim, color='red', linewidth=lines_linewidth, label='Optimization')
     # 理论曲线 - 使用变量中定义的线宽
-    ax1.plot(r_values, n_theory, color='blue', linewidth=lines_linewidth, linestyle='--', label='Theory')
+    # ax1.plot(r_values, n_theory, color='blue', linewidth=lines_linewidth, linestyle='--', label='Theory')
     
     # 使用变量中定义的字体大小和样式
     ax1.set_xlabel('End-to-end distance $r$', fontsize=label_fontsize)
-    ax1.set_ylabel('Unfolding probability $n_u$', fontsize=label_fontsize)
-    ax1.set_title('$n_u$ vs. distance $r$', fontsize=title_fontsize, pad=20)
+    ax1.set_ylabel('Unfolding probability $n$', fontsize=label_fontsize)
+    ax1.set_title('$n$ vs. distance $r$', fontsize=title_fontsize, pad=20)
     
     # 设置网格 - 使用变量中定义的线宽和透明度
     ax1.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
@@ -388,8 +399,8 @@ def main():
     ax2.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax2.set_xlim(0, 20)
-    ax2.set_ylim(-1.5, 15)
+    ax2.set_xlim(0, 15)
+    ax2.set_ylim(-1.0, 10)
     
     # 设置刻度（所有边框都有刻度，朝内） - 使用变量中定义的参数
     ax2.tick_params(axis='both', which='major', 
@@ -436,7 +447,6 @@ def main():
     print("\n" + "="*80)
     print("参数设置:")
     print(f"  ξ_f = {xi_f}")
-    print(f"  ξ_u = {xi_u}")
     print(f"  ΔE = {DeltaE}")
     print(f"  r_s = {rs}")
     print(f"\nr范围: {r_min:.2f} 到 {r_max:.2f}")

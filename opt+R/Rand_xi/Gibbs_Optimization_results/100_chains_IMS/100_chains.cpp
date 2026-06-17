@@ -22,7 +22,7 @@ const double xi_f_std = 1.0;
 const double alpha = 7.0;
 const double E0 = 1.0;
 const double Ek = 4.0;
-const int N = 6;
+const int N = 10;
 const int M = 100;
 const int r_grid = 100;
 const int n_grid = 10;
@@ -513,7 +513,7 @@ void save_all_chains_xi_f(const vector<vector<double>>& all_chain_xi_f,
 // ===============================================================
 
 int main() {
-    string save_path = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Gibbs_Optimization_results/100_chains_IMS/6_100_C_file";
+    string save_path = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Gibbs_Optimization_results/100_chains_IMS/10_100_C_file";
     
     if (!fs::exists(save_path)) {
         fs::create_directories(save_path);

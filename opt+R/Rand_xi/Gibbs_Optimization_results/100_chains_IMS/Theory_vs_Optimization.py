@@ -93,10 +93,10 @@ xi_f = 5.0  # 折叠态持续长度
 alpha = 7.0      # 解折叠系数
 E0 = 1.0     # 能量基准值
 Ek = 4.0     # 能量系数
-N = 2.0     # domain 的数量
-k1 = 10.0
-k2 = 1.35
-R0 = 15.0    # 初始首末端距离
+N = 10.0     # domain 的数量
+k1 = 11.0
+k2 = 1.36
+R0 = 20.0    # 初始首末端距离
 
 def energy_term_U(n_i, DeltaEi):
     """能量项: U(n_i) = ΔE_i n_i - ΔE_i cos(2π n_i)"""
@@ -144,28 +144,21 @@ def MSforce(r, L_c):
                      np.inf)
     return force
 
-def PlotMS(L_c, lineType):
-    """绘制Marko-Siggia力拉伸曲线"""
-    r = np.linspace(0, 0.95*L_c, 1000)
-    x = r/L_c
-    x = np.asarray(x)
-    L_c = np.asarray(L_c)
-    
-    # 初始化结果数组
-    result = np.zeros_like(x, dtype=float)
-    
-    # 处理x < 1的情况
-    mask = x < 1.0
-    if np.any(mask):
-        x_masked = x[mask]
-        result[mask] = 0.25 * ((1 - x_masked)**(-2) - 1 + 4*x_masked)
-    
-    # 处理x >= 1的情况
-    result[~mask] = np.inf
+def PlotBundaryAsy(f_min = 0.01, f_max = 10.0):
+    f_val = np.linspace(f_min, f_max, 200)
+    x_val = end_to_end_factor3(f_val)
 
-    line = plt.plot(r, result, lineType, color='blue', linewidth=lines_linewidth, label=f'$L_c = {L_c}$', zorder=3)
-    return line
+    # 完全没打开
+    r_val1 = x_val*N*xi_f
+    # 全部打开
+    r_val2 = x_val*N*alpha*xi_f
 
+    # 绘图
+    line1 = plt.plot(r_val1, f_val, "-", color='blue', linewidth=lines_linewidth, label=f'Fully folded $L_c = 50$', zorder=3)
+    line2 = plt.plot(r_val2, f_val, "--", color='blue', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = 350$', zorder=3)
+    
+    return line1, line2
+    
 def load_chain_data(chain_idx, data_dir):
     """加载单条链的r和n数据"""
     r_file = os.path.join(data_dir, f"chain_{chain_idx}_r_values_unified.csv")
@@ -253,14 +246,6 @@ def Lc(f):
     
     return contour_length
 
-def end_to_end_factor2(f):
-    """
-    WLC的f(x)的近似反函数
-    """
-    a = 4/3*(2 + np.tanh(0.1*(f - 2)))
-    x = 1 - 1/np.sqrt(a*f + 1)
-    return x
-
 def end_to_end_factor1(f):
     """
     WLC的f(x)的近似反函数
@@ -308,30 +293,37 @@ def end_to_end_factor1(f):
     
     return x
 
+def end_to_end_factor2(f):
+    """
+    WLC的f(x)的近似反函数
+    """
+    a = 4/3*(2 + np.tanh(0.1*(f - 2)))
+    x = 1 - 1/np.sqrt(a*f + 1)
+    return x
+
+def end_to_end_factor3(f):
+    # Marko-Siggia的高力渐近形式
+    x = 1 - 0.5*np.sqrt(1/f)
+    return x
+
 def PlotfTheory(f_min = 0.01, f_max = 10.0, lineType1 = '-', lineType2 = '--'):
     """f-拉伸曲线的解析公式——双曲正切"""
     f_val = np.linspace(f_min, f_max, 200)
     Length = Lc(f_val)
 
-    x_val1 = end_to_end_factor1(f_val)
-    x_val2 = end_to_end_factor2(f_val)
-    r_val1 = x_val1*Length
-    r_val2 = x_val2*Length
-
-    # 调试输出
-    print(f"调试信息:")
-    print(f"  f_val范围: [{f_val[0]:.4f}, {f_val[-1]:.4f}]")
-    print(f"  x_val1范围: [{np.min(x_val1):.4f}, {np.max(x_val1):.4f}]")
-    print(f"  x_val2范围: [{np.min(x_val2):.4f}, {np.max(x_val2):.4f}]")
-    print(f"  r_val1范围: [{np.min(r_val1):.4f}, {np.max(r_val1):.4f}]")
-    print(f"  r_val2范围: [{np.min(r_val2):.4f}, {np.max(r_val2):.4f}]")
-    print(f"  NaN in r_val2: {np.any(np.isnan(r_val2))}")
-    print(f"  Inf in r_val2: {np.any(np.isinf(r_val2))}")
+    #x_val1 = end_to_end_factor1(f_val)
+    #x_val2 = end_to_end_factor2(f_val)
+    x_val3 = end_to_end_factor3(f_val)
+    
+    #r_val1 = x_val1*Length
+    #r_val2 = x_val2*Length
+    r_val3 = x_val3*Length
 
     # line1 = plt.plot(r_val1, f_val, lineType1, color='purple', linewidth=lines_linewidth, label=f'Theory 1', zorder=2)
-    line2 = plt.plot(r_val2, f_val, lineType2, color='purple', linewidth=lines_linewidth, label=f'Theory', zorder=3)
+    # line2 = plt.plot(r_val2, f_val, lineType2, color='purple', linewidth=lines_linewidth, label=f'Theory', zorder=3)
+    line3 = plt.plot(r_val3, f_val, lineType2, color='purple', linewidth=lines_linewidth, label=f'Theory', zorder=3)
 
-    return line2
+    return line3
 
 def PlotnTheory(f_min = 0.01, f_max = 10.0, lineType = '-'):
     """n-拉伸曲线的解析公式——双曲正切"""
@@ -449,8 +441,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 9))
     
     # 绘制Marko-Siggia边界线
-    PlotMS(N*xi_f, "-")
-    PlotMS(alpha*N*xi_f, "--")
+    PlotBundaryAsy()
     
     # 绘制所有链的原始轨迹（半透明灰色）
     for f, r_opt in zip(all_f_values, all_r_values):
@@ -485,7 +476,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     
     # 设置坐标轴范围
     ax1.set_xlim(0.0, alpha*N*xi_f)
-    ax1.set_ylim(0.0, 5.0)
+    ax1.set_ylim(0.0, 4.0)
     
     # 设置刻度参数
     ax1.tick_params(axis='both', which='major', 
@@ -555,7 +546,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
                edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax2.set_xlim(0.0, 5.0)
+    ax2.set_xlim(0.0, 3.0)
     ax2.set_ylim(-0.2, float(N) + 0.2)
     
     # 设置刻度参数
@@ -698,7 +689,7 @@ def main():
     print("=" * 80)
     
     # ============ 在这里指定文件路径 ============
-    data_dir = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Gibbs_Optimization_results/100_chains_IMS/2_100_C_file"
+    data_dir = "/home/tyt/project/Single-chain/opt+R/Rand_xi/Gibbs_Optimization_results/100_chains_IMS/10_100_C_file"
     output_dir = data_dir  # 保存结果的目录
     num_chains = 100
     

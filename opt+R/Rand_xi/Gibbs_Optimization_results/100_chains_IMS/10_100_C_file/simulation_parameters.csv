@@ -1,0 +1,17 @@
+Parameter,Value,Description
+xi_f_mean,5,ξ_f均值
+xi_f_std,1,ξ_f标准差
+alpha,7,解折叠系数
+E0,1,能量常数E0
+Ek,4,能量常数Ek
+N_domains_per_chain,10,每条链的domain数量
+N_chains,100,链的数量
+r_grid,100,r网格数
+n_grid,10,n网格数
+f_grid_initial,100,初始力值网格数
+f_max,10,最大力值
+refinement_threshold,0.5,细化阈值
+max_refinement_level,10,最大细化层级
+tolerance,1e-06,最小力值间隔
+upper_bound,8,ξ_f上界
+lower_bound,2,ξ_f下界

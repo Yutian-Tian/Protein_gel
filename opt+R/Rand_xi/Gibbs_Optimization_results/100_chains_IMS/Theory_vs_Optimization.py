@@ -137,9 +137,9 @@ def Plot2state(r_fold, r_unfold, f, lineType):
     
     return line
 
-def MSforce(r, L_c):
-    x = np.asarray(r) / L_c
-    force = np.where(x < 1.0,
+def MSforce(r, Lc):
+    x = np.asarray(r, dtype=np.float64) / Lc
+    force = np.where(x < 0.99,
                      0.25 * ((1 - x) ** (-2) - 1 + 4 * x),
                      np.inf)
     return force
@@ -156,6 +156,17 @@ def PlotBundaryAsy(f_min = 0.01, f_max = 10.0):
     # 绘图
     line1 = plt.plot(r_val1, f_val, "-", color='blue', linewidth=lines_linewidth, label=f'Fully folded $L_c = 50$', zorder=3)
     line2 = plt.plot(r_val2, f_val, "--", color='blue', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = 350$', zorder=3)
+    
+    return line1, line2
+
+def PlotBundaryMS():
+    r_val = np.linspace(0, N*alpha*xi_f, 1000)
+    f_val1 = MSforce(r_val, N*xi_f)
+    f_val2 = MSforce(r_val, N*alpha*xi_f)
+
+    # 绘图
+    line1 = plt.plot(r_val, f_val1, "-", color='black', linewidth=lines_linewidth, label=f'Fully folded $L_c = 50$', zorder=2)
+    line2 = plt.plot(r_val, f_val2, "--", color='black', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = 350$', zorder=2)
     
     return line1, line2
     
@@ -328,7 +339,7 @@ def PlotfTheory(f_min = 0.01, f_max = 10.0, lineType1 = '-', lineType2 = '--'):
 def PlotnTheory(f_min = 0.01, f_max = 10.0, lineType = '-'):
     """n-拉伸曲线的解析公式——双曲正切"""
     f_val = np.linspace(f_min, f_max, 200)
-    ntheory = 0.5*N*(1.0 + np.tanh(k1*(f_val - k2)))
+    ntheory = 0.5*(1.0 + np.tanh(k1*(f_val - k2)))
     line = plt.plot(f_val, ntheory, lineType, color='purple', linewidth=lines_linewidth, label=f'Theory', zorder=2)
     return line
 
@@ -440,8 +451,10 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     # ============ 创建第一幅图: f-r_opt ============
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 9))
     
-    # 绘制Marko-Siggia边界线
+    # 绘制Marko-Siggia边界线_渐近
     PlotBundaryAsy()
+    # 绘制Marko-Siggia边界线_精确
+    PlotBundaryMS()
     
     # 绘制所有链的原始轨迹（半透明灰色）
     for f, r_opt in zip(all_f_values, all_r_values):
@@ -456,7 +469,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     if np.any(valid_mask):
         ax1.plot(r_mean[valid_mask], unified_f_grid[valid_mask], 
                 color='red', linewidth=lines_linewidth, 
-                label='Average Curve', zorder=2)
+                label='Average', zorder=2)
     
     # 绘制理论曲线
     PlotfTheory()
@@ -464,7 +477,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     # 设置标签和标题
     ax1.set_xlabel('End-to-end distance $r$', fontsize=label_fontsize)
     ax1.set_ylabel('Force $f$', fontsize=label_fontsize)
-    ax1.set_title(f'{len(all_f_values)} Chains: $f$ - $r$ Relationship', 
+    ax1.set_title(f'{len(all_f_values)} Chains: $f$ vs. $r$', 
                   fontsize=title_fontsize, pad=20)
     
     # 设置网格
@@ -519,23 +532,23 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     # 绘制所有链的原始轨迹（半透明灰色）
     for f, n_opt in zip(all_f_values, all_n_values):
         # 使用原始数据顺序，不进行排序
-        ax2.plot(f, n_opt, 
+        ax2.plot(f, n_opt/N, 
                 color='gray', alpha=0.5, linewidth=0.5, zorder=1)
     
     # 绘制平均曲线（红色）
     valid_mask = ~np.isnan(n_mean)
     if np.any(valid_mask):
-        ax2.plot(unified_f_grid[valid_mask], n_mean[valid_mask], 
+        ax2.plot(unified_f_grid[valid_mask], n_mean[valid_mask]/N, 
                 color='red', linewidth=lines_linewidth, 
-                label='Average Curve', zorder=2)
+                label='Average', zorder=2)
         
     # 绘制理论曲线
     PlotnTheory()
 
     # 设置标签和标题
     ax2.set_xlabel('Force $f$', fontsize=label_fontsize)
-    ax2.set_ylabel('Unfolded Number $n$', fontsize=label_fontsize)
-    ax2.set_title(f'{len(all_f_values)} Chains: $n$ - $f$ Relationship', 
+    ax2.set_ylabel('Unfolded Fraction $n/N$', fontsize=label_fontsize)
+    ax2.set_title(f'{len(all_f_values)} Chains: $n/N$ vs. $f$', 
                   fontsize=title_fontsize, pad=20)
     
     # 设置网格
@@ -547,7 +560,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     
     # 设置坐标轴范围
     ax2.set_xlim(0.0, 3.0)
-    ax2.set_ylim(-0.2, float(N) + 0.2)
+    ax2.set_ylim(-0.1, 1.1)
     
     # 设置刻度参数
     ax2.tick_params(axis='both', which='major', 
@@ -596,19 +609,19 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
 
     # 绘制边界：蓝色
     lambda1, sigma1, lambda2, sigma2 = StressBoundry(R0)
-    ax3.plot(lambda1, sigma1, '-', color='blue', linewidth=lines_linewidth, label='Upper bound', zorder=1)
-    ax3.plot(lambda2, sigma2, '--', color='blue', linewidth=lines_linewidth, label='Lower bound', zorder=2)
+    ax3.plot(lambda1, sigma1, '-', color='blue', linewidth=lines_linewidth, label='Fully folded', zorder=1)
+    ax3.plot(lambda2, sigma2, '--', color='blue', linewidth=lines_linewidth, label='Fully unfolded', zorder=2)
 
     # 连续化的理论曲线：紫色
-    f_vals = np.linspace(0, 20.0, 1000)
-    r_vals = end_to_end_factor2(f_vals)*Lc(f_vals)
+    f_vals = np.linspace(0.01, 20.0, 1000)
+    r_vals = end_to_end_factor3(f_vals)*Lc(f_vals)
     clambda, csigma = StressOptimization(R0, r_vals, f_vals)
     ax3.plot(clambda, csigma, '-', color='purple', linewidth=lines_linewidth, label='Theory', zorder=3)
 
     # 设置标签和标题
     ax3.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)
     ax3.set_ylabel('Stress $\sigma/\\rho k_B T$', fontsize=label_fontsize)
-    ax3.set_title(f'Constitutive curve of 3-chain model', 
+    ax3.set_title(f'Constitutive curve', 
                   fontsize=title_fontsize, pad=20)
     
     # 设置网格
@@ -620,7 +633,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     
     # 设置坐标轴范围
     ax3.set_xlim(1.0, alpha*N*xi_f/R0)
-    ax3.set_ylim(0.0, 50.0)
+    ax3.set_ylim(0.0, 100.0)
     
     # 设置刻度参数
     ax3.tick_params(axis='both', which='major', 

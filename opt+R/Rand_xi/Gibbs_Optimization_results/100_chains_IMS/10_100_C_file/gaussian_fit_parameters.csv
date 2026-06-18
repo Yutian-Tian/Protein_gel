@@ -1,0 +1,8 @@
+Parameter,Value,Description
+mu,1.3789217873,高斯拟合均值
+sigma,0.0823308201,高斯拟合标准差
+mu_empirical,1.3447159091,经验均值
+sigma_empirical,0.1048969950,经验标准差
+N_total,1000,总的fu数据点数
+N_chains,100,链数
+N_domains,10,每链domain数

@@ -165,8 +165,8 @@ def PlotBundaryMS():
     f_val2 = MSforce(r_val, N*alpha*xi_f)
 
     # 绘图
-    line1 = plt.plot(r_val, f_val1, "-", color='black', linewidth=lines_linewidth, label=f'Fully folded $L_c = 50$', zorder=2)
-    line2 = plt.plot(r_val, f_val2, "--", color='black', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = 350$', zorder=2)
+    line1 = plt.plot(r_val, f_val1, "-", color='blue', linewidth=lines_linewidth, label=f'Fully folded $L_c = 50$', zorder=3)
+    line2 = plt.plot(r_val, f_val2, "--", color='blue', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = 350$', zorder=3)
     
     return line1, line2
     
@@ -452,7 +452,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 9))
     
     # 绘制Marko-Siggia边界线_渐近
-    PlotBundaryAsy()
+    # PlotBundaryAsy()
     # 绘制Marko-Siggia边界线_精确
     PlotBundaryMS()
     
@@ -477,7 +477,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     # 设置标签和标题
     ax1.set_xlabel('End-to-end distance $r$', fontsize=label_fontsize)
     ax1.set_ylabel('Force $f$', fontsize=label_fontsize)
-    ax1.set_title(f'{len(all_f_values)} Chains: $f$ vs. $r$', 
+    ax1.set_title(f'{len(all_f_values)} Chains: Force-extension Curve', 
                   fontsize=title_fontsize, pad=20)
     
     # 设置网格
@@ -521,7 +521,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     
     # 保存第一幅图
     if save_dir:
-        save_path1 = os.path.join(save_dir, 'f_r_opt vs. theory.png')
+        save_path1 = os.path.join(save_dir, 'Optmization vs. Theory.png')
         fig1.savefig(save_path1, dpi=savefig_dpi, bbox_inches='tight', 
                      facecolor='white', edgecolor='none')
         print(f"f-r图已保存至: {save_path1}")

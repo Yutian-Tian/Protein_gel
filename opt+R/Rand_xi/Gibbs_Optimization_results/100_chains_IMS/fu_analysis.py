@@ -296,6 +296,63 @@ def get_gev_cdf(x, mu, sigma, xi):
     """GEV累积分布函数"""
     return stats.genextreme.cdf(x, -xi, loc=mu, scale=sigma)
 
+# ===================== 独立封装的四个分布绘图函数 =====================
+def plot_gaussian_pdf(ax, x, mu, sigma, 
+                      color='blue', linewidth=4, linestyle='-', 
+                      label=None, zorder=5):
+    """
+    在指定坐标轴上绘制高斯分布概率密度(PDF)曲线
+    参数:
+        ax: matplotlib坐标轴对象
+        x: 横坐标数组
+        mu: 高斯分布均值
+        sigma: 高斯分布标准差
+        其余为样式参数
+    返回:
+        line: 绘制的曲线对象
+    """
+    pdf = (1.0 / (sigma * np.sqrt(2 * np.pi))) * np.exp(-0.5 * ((x - mu) / sigma) ** 2)
+    line, = ax.plot(x, pdf, color=color, linewidth=linewidth, 
+                    linestyle=linestyle, label=label, zorder=zorder)
+    return line
+
+
+def plot_gaussian_cdf(ax, x, mu, sigma, 
+                      color='blue', linewidth=3, linestyle='--', 
+                      label=None, zorder=4):
+    """
+    在指定坐标轴上绘制高斯分布累积分布(CDF)曲线
+    """
+    cdf = stats.norm.cdf(x, loc=mu, scale=sigma)
+    line, = ax.plot(x, cdf, color=color, linewidth=linewidth, 
+                    linestyle=linestyle, label=label, zorder=zorder)
+    return line
+
+
+def plot_gev_pdf(ax, x, mu, sigma, xi, 
+                 color='red', linewidth=4, linestyle='-', 
+                 label=None, zorder=5):
+    """
+    在指定坐标轴上绘制GEV分布概率密度(PDF)曲线
+    参数:
+        xi: GEV形状参数(标准定义，scipy内部c=-xi)
+    """
+    pdf = stats.genextreme.pdf(x, -xi, loc=mu, scale=sigma)
+    line, = ax.plot(x, pdf, color=color, linewidth=linewidth, 
+                    linestyle=linestyle, label=label, zorder=zorder)
+    return line
+
+
+def plot_gev_cdf(ax, x, mu, sigma, xi, 
+                 color='red', linewidth=3, linestyle='--', 
+                 label=None, zorder=4):
+    """
+    在指定坐标轴上绘制GEV分布累积分布(CDF)曲线
+    """
+    cdf = stats.genextreme.cdf(x, -xi, loc=mu, scale=sigma)
+    line, = ax.plot(x, cdf, color=color, linewidth=linewidth, 
+                    linestyle=linestyle, label=label, zorder=zorder)
+    return line
 
 def prepare_fit_results(fu_data, n_bins=30):
     """
@@ -357,98 +414,108 @@ def prepare_fit_results(fu_data, n_bins=30):
 # 5. 科研风格可视化（双Y轴，同时显示高斯和GEV）
 # ============================================================
 
-def plot_fu_distribution(fit_results, save_path=None, figsize=(10, 8)):
+def plot_fu_distribution(fit_results, save_path=None, figsize=(10, 8), show_cdf=None):
     """
-    绘制fu的分布分析图（双Y轴）：
-    左Y轴：概率密度（直方图 + 高斯PDF + GEV PDF）
-    右Y轴：累积概率（经验CDF + 高斯CDF + GEV CDF）
+    主绘图函数：整合直方图、经验CDF、四个理论分布曲线
+    参数:
+        show_cdf: 是否开启右Y轴显示累积分布
     """
     fu_data = fit_results['fu_data']
     gauss = fit_results['gauss']
     gev = fit_results['gev']
+    x_fit = fit_results['x_fit']
 
     fig, ax1 = plt.subplots(figsize=figsize)
 
     # ---- 左Y轴：概率密度 ----
-    # 直方图
+    # 绘制直方图
     counts, edges, patches = ax1.hist(
         fu_data, bins=len(gauss['hist_counts']), density=True,
         color='lightcoral', edgecolor='black', alpha=0.4, linewidth=1.2,
         zorder=2, label='Histogram')
 
-    # 高斯拟合PDF
-    ax1.plot(fit_results['x_fit'], fit_results['pdf_gauss'],
-             color='blue', linewidth=4, linestyle='-',
-             label=f"Gaussian ($\\mu$={gauss['mu']:.3f}, $\\sigma$={gauss['sigma']:.3f})",
-             zorder=5)
-
-    # GEV拟合PDF
-    ax1.plot(fit_results['x_fit'], fit_results['pdf_gev'],
-             color='red', linewidth=4, linestyle='-',
-             label=f"GEV ($\\mu$={gev['mu']:.3f}, $\\sigma$={gev['sigma']:.3f}, $\\xi$={gev['xi']:.3f})",
-             zorder=5)
+    # 调用封装函数绘制两个PDF
+    plot_gaussian_pdf(
+        ax1, x_fit, gauss['mu'], gauss['sigma'],
+        color='blue', linewidth=4, linestyle='-',
+        label=f"Gaussian ($\\mu$={gauss['mu']:.2f}, $\\sigma$={gauss['sigma']:.2f})"
+    )
+    plot_gev_pdf(
+        ax1, x_fit, gev['mu'], gev['sigma'], gev['xi'],
+        color='red', linewidth=4, linestyle='-',
+        label=f"GEV ($\\mu$={gev['mu']:.2f}, $\\sigma$={gev['sigma']:.2f}, $\\xi$={gev['xi']:.2f})"
+    )
 
     ax1.set_xlabel(r'Transition force $f_u$', fontsize=35)
     ax1.set_ylabel('Probability density', fontsize=35, color='black')
     ax1.tick_params(axis='y', labelcolor='black', direction='in',
-                    top=True, right=False, width=2, length=10)
+                    top=True, right=not show_cdf, width=2, length=10)
     ax1.tick_params(axis='x', direction='in', top=True, bottom=True,
                     width=2, length=10)
     ax1.minorticks_on()
     ax1.tick_params(axis='both', which='minor', direction='in',
-                    top=True, right=False, width=1.5, length=5)
+                    top=True, right=not show_cdf, width=1.5, length=5)
 
     max_density = max(np.max(fit_results['pdf_gauss']),
                       np.max(fit_results['pdf_gev']),
                       np.max(counts) if len(counts) > 0 else 0)
     ax1.set_ylim(0, max_density * 1.2)
 
-    # # ---- 右Y轴：累积概率 ----
-    # ax2 = ax1.twinx()
+    # ---- 右Y轴：累积概率（可选开关） ----
+    if show_cdf:
+        ax2 = ax1.twinx()
 
-    # # 经验CDF
-    # ax2.plot(fit_results['fu_sorted'], fit_results['empirical_cdf'],
-    #          color='green', linewidth=4, linestyle='--',
-    #          label='Empirical CDF', zorder=4)
+        # 经验CDF
+        ax2.plot(fit_results['fu_sorted'], fit_results['empirical_cdf'],
+                 color='green', linewidth=4, linestyle='--',
+                 label='Empirical CDF', zorder=4)
 
-    # # 高斯CDF
-    # ax2.plot(fit_results['x_fit'], fit_results['cdf_gauss'],
-    #          color='blue', linewidth=3, linestyle='--',
-    #          label='Gaussian CDF', zorder=4)
+        # 调用封装函数绘制两个CDF
+        plot_gaussian_cdf(
+            ax2, x_fit, gauss['mu'], gauss['sigma'],
+            color='blue', linewidth=3, linestyle='--',
+            label='Gaussian CDF'
+        )
+        plot_gev_cdf(
+            ax2, x_fit, gev['mu'], gev['sigma'], gev['xi'],
+            color='red', linewidth=3, linestyle='--',
+            label='GEV CDF'
+        )
 
-    # # GEV CDF
-    # ax2.plot(fit_results['x_fit'], fit_results['cdf_gev'],
-    #          color='red', linewidth=3, linestyle='--',
-    #          label='GEV CDF', zorder=4)
+        ax2.set_ylabel('Cumulative probability', fontsize=35, color='black')
+        ax2.tick_params(axis='y', labelcolor='black', direction='in',
+                        top=True, right=True, width=2, length=10)
+        ax2.set_ylim(0, 1.05)
+        ax2.minorticks_on()
+        ax2.tick_params(axis='y', which='minor', direction='in',
+                        top=True, right=True, width=1.5, length=5)
 
-    # ax2.set_ylabel('Cumulative probability', fontsize=35, color='black')
-    # ax2.tick_params(axis='y', labelcolor='black', direction='in',
-    #                 top=True, right=True, width=2, length=10)
-    # ax2.set_ylim(0, 1.05)
-    # ax2.minorticks_on()
-    # ax2.tick_params(axis='y', which='minor', direction='in',
-    #                 top=True, right=True, width=1.5, length=5)
+        # 合并双轴图例
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        lines2, labels2 = ax2.get_legend_handles_labels()
+        ax1.legend(lines1 + lines2, labels1 + labels2,
+                   loc='upper left', fontsize=20,
+                   framealpha=0.9, edgecolor='gray',
+                   fancybox=True, shadow=False)
+        
+        for spine in ax2.spines.values():
+            spine.set_linewidth(2)
+    else:
+        lines1, labels1 = ax1.get_legend_handles_labels()
+        ax1.legend(lines1, labels1,
+                   loc='upper left', fontsize=20,
+                   framealpha=0.9, edgecolor='gray',
+                   fancybox=True, shadow=False)
 
-    # # ---- 图例合并 ----
-    lines1, labels1 = ax1.get_legend_handles_labels()
-    # lines2, labels2 = ax2.get_legend_handles_labels()
-    ax1.legend(lines1, labels1,
-               loc='upper left', fontsize=20,
-               framealpha=0.9, edgecolor='gray',
-               fancybox=True, shadow=False)
-
-    # ---- 标题与网格 ----
+    # ---- 通用样式 ----
     ax1.set_title(r'$f_u$ Distribution: Gaussian vs. GEV', fontsize=38, pad=20)
     ax1.grid(True, alpha=0.3, linestyle=':', linewidth=1, zorder=0)
 
     for spine in ax1.spines.values():
         spine.set_linewidth(2)
-    # for spine in ax2.spines.values():
-    #     spine.set_linewidth(2)
 
-    # ---- X轴范围 ----
     x_min = fu_data.min() - 0.3 * gauss['sigma']
-    x_max = fit_results['x_fit'].max()  # 使用已调整的上限
+    x_max = x_fit.max()
     ax1.set_xlim(x_min, x_max)
 
     plt.tight_layout()
@@ -458,7 +525,7 @@ def plot_fu_distribution(fit_results, save_path=None, figsize=(10, 8)):
                     facecolor='white', edgecolor='none')
         print(f"  图形已保存至: {save_path}.png")
 
-    return fig, (ax1)
+    return fig, (ax1, ax2) if show_cdf else (ax1,)
 
 
 def plot_fu_by_chain(fu_by_chain, save_path=None, figsize=(16, 10)):

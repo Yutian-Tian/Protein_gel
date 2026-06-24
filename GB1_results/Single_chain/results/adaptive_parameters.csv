@@ -1,0 +1,15 @@
+Parameter,Value
+xi_f,3.6
+alpha,7.6
+E_mean,11.9
+E_std,1.7
+N,10.0
+r_grid,100.0
+n_grid,10.0
+f_grid_initial,100.0
+f_max,10.0
+refinement_threshold,0.5
+max_refinement_level,10.0
+tolerance,1e-06
+upper_bound,16.9
+lower_bound,6.9

@@ -98,7 +98,7 @@ E_std = 1.7    # 能量差的标准差
 N = 10.0     # domain 的数量
 k1 = 6.5
 k2 = 1.50
-R0 = 20.0    # 初始首末端距离
+R0 = 10.0    # 初始首末端距离
 
 def energy_term_U(n_i, DeltaEi):
     """能量项: U(n_i) = ΔE_i n_i - ΔE_i cos(2π n_i)"""
@@ -138,36 +138,20 @@ def Plot2state(r_fold, r_unfold, f, lineType):
     
     return line
 
-def MSforce(r, Lc):
-    x = np.asarray(r, dtype=np.float64) / Lc
+def MSforce(x):
     force = np.where(x < 0.99,
                      0.25 * ((1 - x) ** (-2) - 1 + 4 * x),
                      np.inf)
     return force
 
-def PlotBundaryAsy(f_min = 0.01, f_max = 10.0):
-    f_val = np.linspace(f_min, f_max, 200)
-    x_val = end_to_end_factor3(f_val)
-
-    # 完全没打开
-    r_val1 = x_val*N*xi_f
-    # 全部打开
-    r_val2 = x_val*N*alpha*xi_f
-
-    # 绘图
-    line1 = plt.plot(r_val1, f_val, "-", color='blue', linewidth=lines_linewidth, label=f'Fully folded $L_c = {N*xi_f:.0f}$', zorder=3)
-    line2 = plt.plot(r_val2, f_val, "--", color='blue', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = {N*alpha*xi_f:.0f}$', zorder=3)
-    
-    return line1, line2
-
 def PlotBundaryMS():
     r_val = np.linspace(0, N*alpha*xi_f, 1000)
-    f_val1 = MSforce(r_val, N*xi_f)
-    f_val2 = MSforce(r_val, N*alpha*xi_f)
+    f_val1 = MSforce(r_val/(N*xi_f))
+    f_val2 = MSforce(r_val/(N*alpha*xi_f))
 
     # 绘图
-    line1 = plt.plot(r_val, f_val1, "-", color='blue', linewidth=lines_linewidth, label=f'Fully folded $L_c = {N*xi_f:.0f}$', zorder=3)
-    line2 = plt.plot(r_val, f_val2, "--", color='blue', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = {N*alpha*xi_f:.0f}$', zorder=3)
+    line1 = plt.plot(r_val, f_val1, "-", color='#1f77b4', linewidth=lines_linewidth, label=f'Fully folded $L_c = {N*xi_f:.0f}$', zorder=3)
+    line2 = plt.plot(r_val, f_val2, "--", color='#1f77b4', linewidth=lines_linewidth, label=f'Fully unfolded $L_c = {N*alpha*xi_f:.0f}$', zorder=3)
     
     return line1, line2
     
@@ -333,9 +317,15 @@ def PlotfTheory(f_min = 0.01, f_max = 10.0, lineType1 = '-', lineType2 = '--'):
 
     # line1 = plt.plot(r_val1, f_val, lineType1, color='purple', linewidth=lines_linewidth, label=f'Theory 1', zorder=2)
     # line2 = plt.plot(r_val2, f_val, lineType2, color='purple', linewidth=lines_linewidth, label=f'Theory', zorder=3)
-    line3 = plt.plot(r_val3, f_val, lineType2, color='purple', linewidth=lines_linewidth, label=f'Theory', zorder=3)
+    line3 = plt.plot(r_val3, f_val, lineType2, color='purple', linewidth=lines_linewidth, label=f'Asymptotic', zorder=3)
 
-    return line3
+    # 使用Marko-Siggia绘制
+    x_MS = np.linspace(0.0, 0.99, 100)
+    f_MS = MSforce(x_MS)
+    r_MS = x_MS * Lc(f_MS)
+    line_MS = plt.plot(r_MS, f_MS, '--', color='#000000', linewidth=lines_linewidth, label=f'Marko-Siggia', zorder=4)
+
+    return line3, line_MS
 
 def PlotnTheory(f_min = 0.01, f_max = 10.0, lineType = '-'):
     """n-拉伸曲线的解析公式——双曲正切"""
@@ -392,16 +382,43 @@ def StressBoundry(R0):
     r1_val = np.linspace(R0, 0.95*Lc1, 1000)
     lambda1 = r1_val/R0
     r1_prime = lambda1 ** (-0.5) * R0
-    sigma1 = R0*(MSforce(r1_val, Lc1)- lambda1 ** (-1.5) * MSforce(r1_prime, Lc1))
+    sigma1 = R0*(MSforce(r1_val/Lc1)- lambda1 ** (-1.5) * MSforce(r1_prime/Lc1))
 
     # 全部都打开极限
     Lc2 = alpha*N*xi_f
     r2_val = np.linspace(R0, 0.95*Lc2, 1000)
     lambda2 = r2_val/R0
     r2_prime = lambda2 ** (-0.5) * R0
-    sigma2 = R0*(MSforce(r2_val, Lc2)- lambda2 ** (-1.5) * MSforce(r2_prime, Lc2))
+    sigma2 = R0*(MSforce(r2_val/Lc2)- lambda2 ** (-1.5) * MSforce(r2_prime/Lc2))
 
     return lambda1, sigma1, lambda2, sigma2
+
+def PlotStressMS(R0):
+    # 使用Marko-Siggia绘制
+    x_MS = np.linspace(0.0, 0.99, 100)
+    f_MS = MSforce(x_MS)
+    r_MS = x_MS * Lc(f_MS)
+    lambda_MS, stress_MS = StressOptimization(R0, r_MS, f_MS)
+    line_MS = plt.plot(lambda_MS, stress_MS, '--', color='#000000', linewidth=lines_linewidth, label=f'Marko-Siggia', zorder=4)
+    
+    return line_MS
+
+def PlotStressBoundary(R0):
+    lambda1, sigma1, lambda2, sigma2 = StressBoundry(R0)
+    line1 = plt.plot(lambda1, sigma1, '-', color='#1f77b4', linewidth=lines_linewidth, label='Fully folded', zorder=1)
+    line2 = plt.plot(lambda2, sigma2, '--', color='#1f77b4', linewidth=lines_linewidth, label='Fully unfolded', zorder=2)
+    
+    return line1, line2
+
+def PlotStressAsy(R0, f_min = 0.01, f_max = 10.0, lineType = '-'):
+    f_val = np.linspace(f_min, f_max, 200)
+    Length = Lc(f_val)
+    x_val3 = end_to_end_factor3(f_val)
+    r_val3 = x_val3*Length
+    lambda_, sigma = StressOptimization(R0, r_val3, f_val)
+    line = plt.plot(lambda_, sigma, lineType, color='purple', linewidth=lines_linewidth, label=f'Asymptotic', zorder=3)
+    
+    return line
 
 def process_all_chains(data_dir, num_chains=100):
     """处理所有链的数据"""
@@ -452,16 +469,11 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     # ============ 创建第一幅图: f-r_opt ============
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 9))
     
-    # 绘制Marko-Siggia边界线_渐近
-    # PlotBundaryAsy()
-    # 绘制Marko-Siggia边界线_精确
-    PlotBundaryMS()
-    
     # 绘制所有链的原始轨迹（半透明灰色）
     for f, r_opt in zip(all_f_values, all_r_values):
         # 使用原始数据顺序，不进行排序
         ax1.plot(r_opt, f, 
-                color='gray', alpha=0.5, linewidth=0.5, zorder=1)
+                color='#bdbdbd', alpha=0.5, linewidth=0.5, zorder=1)
     
 
     # 绘制平均曲线（红色）
@@ -469,11 +481,14 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     valid_mask = ~np.isnan(r_mean)
     if np.any(valid_mask):
         ax1.plot(r_mean[valid_mask], unified_f_grid[valid_mask], 
-                color='red', linewidth=lines_linewidth, 
-                label='Average', zorder=2)
+                color='#d62728', linewidth=lines_linewidth, 
+                label='Optimization average', zorder=2)
     
     # 绘制理论曲线
     PlotfTheory()
+
+    # 绘制Marko-Siggia边界线_精确
+    PlotBundaryMS()
 
     # 设置标签和标题
     ax1.set_xlabel('End-to-end distance $r$', fontsize=label_fontsize)
@@ -534,14 +549,14 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     for f, n_opt in zip(all_f_values, all_n_values):
         # 使用原始数据顺序，不进行排序
         ax2.plot(f, n_opt/N, 
-                color='gray', alpha=0.5, linewidth=0.5, zorder=1)
+                color='#bdbdbd', alpha=0.3, linewidth=0.5, zorder=1)
     
     # 绘制平均曲线（红色）
     valid_mask = ~np.isnan(n_mean)
     if np.any(valid_mask):
         ax2.plot(unified_f_grid[valid_mask], n_mean[valid_mask]/N, 
                 color='red', linewidth=lines_linewidth, 
-                label='Average', zorder=2)
+                label='Optimization average', zorder=2)
         
     # 绘制理论曲线
     PlotnTheory()
@@ -560,7 +575,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
                edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax2.set_xlim(0.0, 3.0)
+    ax2.set_xlim(0.0, 4.0)
     ax2.set_ylim(-0.1, 1.1)
     
     # 设置刻度参数
@@ -606,18 +621,16 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     valid_mask = ~np.isnan(n_mean)
     if np.any(valid_mask):
         lambda_, sigma = StressOptimization(R0, r_mean[valid_mask], unified_f_grid[valid_mask])
-    ax3.plot(lambda_, sigma, color='red', linewidth=lines_linewidth, label='Optimization', zorder=2)
+    ax3.plot(lambda_, sigma, color='#d62728', linewidth=lines_linewidth, label='Optimization', zorder=2)
 
     # 绘制边界：蓝色
-    lambda1, sigma1, lambda2, sigma2 = StressBoundry(R0)
-    ax3.plot(lambda1, sigma1, '-', color='blue', linewidth=lines_linewidth, label='Fully folded', zorder=1)
-    ax3.plot(lambda2, sigma2, '--', color='blue', linewidth=lines_linewidth, label='Fully unfolded', zorder=2)
+    PlotStressBoundary(R0)
+
+    # 根据Marko-Siggia绘制应力-应变曲线：黑色虚线
+    PlotStressMS(R0)
 
     # 连续化的理论曲线：紫色
-    f_vals = np.linspace(0.01, 20.0, 1000)
-    r_vals = end_to_end_factor3(f_vals)*Lc(f_vals)
-    clambda, csigma = StressOptimization(R0, r_vals, f_vals)
-    ax3.plot(clambda, csigma, '-', color='purple', linewidth=lines_linewidth, label='Theory', zorder=3)
+    PlotStressAsy(R0)
 
     # 设置标签和标题
     ax3.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)

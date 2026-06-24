@@ -1,0 +1,9 @@
+Distribution,Parameter,Value
+Gaussian,mu,1.5019266097
+Gaussian,sigma,0.1328154117
+GEV,mu,0.1423515606
+GEV,sigma,2.3025225610
+GEV,xi,-1.3444413912
+Data,N_total,1000
+Data,N_chains,100
+Data,N_domains,10

@@ -95,7 +95,7 @@ alpha = 7.6      # 解折叠系数
 E_mean = 11.9  # 平均能量差
 E_std = 1.7    # 能量差的标准差
 
-N = 10.0     # domain 的数量
+N = 4.0     # domain 的数量
 k1 = 6.5
 k2 = 1.50
 R0 = 10.0    # 初始首末端距离
@@ -716,7 +716,7 @@ def main():
     print("=" * 80)
     
     # ============ 在这里指定文件路径 ============
-    data_dir = "/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_10_results"
+    data_dir = "/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_4_results"
     output_dir = data_dir  # 保存结果的目录
     num_chains = 100
     

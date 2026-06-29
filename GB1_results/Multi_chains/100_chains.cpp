@@ -24,17 +24,17 @@ const double alpha = 7.6;      // 解折叠长度系数
 const double E_mean = 11.9;    // 解折叠能均值
 const double E_std = 1.7;      // 解折叠能标准差
 const double E_delta = 5.0;    // 能量截断范围
-const int N = 8;              // 每条链的domain数量
+const int N = 1;              // 每条链的domain数量
 const int M = 100;             // 链的总数量
 const int r_grid = 100;        // r方向网格数
 const int n_grid = 10;         // n方向网格数
-const int f_grid_initial = 100;// 初始力值网格数
+const int f_grid_initial = 500;// 初始力值网格数
 const double f_max = 10.0;     // 最大扫描力值
 
 // 自适应细化参数
-const double refinement_threshold = 0.5;
+const double refinement_threshold = 0.1;
 const int max_refinement_level = 10;
-const double tolerance = 1e-6;
+const double tolerance = 1e-8;
 
 // 能量采样上下界
 const double Upper_bound = E_mean + E_delta;
@@ -515,7 +515,7 @@ void save_all_chains_DeltaE(const vector<vector<double>>& all_chain_DeltaE,
 
 // ===================== 主函数 =====================
 int main() {
-    string save_path = "/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_8_results";
+    string save_path = "/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_" + to_string(N) + "_results";
     
     if (!fs::exists(save_path)) {
         fs::create_directories(save_path);

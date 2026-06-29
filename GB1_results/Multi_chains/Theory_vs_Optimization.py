@@ -95,10 +95,11 @@ alpha = 7.6      # 解折叠系数
 E_mean = 11.9  # 平均能量差
 E_std = 1.7    # 能量差的标准差
 
-N = 4.0     # domain 的数量
-k1 = 6.5
+N = 1.0     # domain 的数量
+k1 = 7.5
 k2 = 1.50
 R0 = 10.0    # 初始首末端距离
+lambda_max = 25.0  # 最大伸长比
 
 def energy_term_U(n_i, DeltaEi):
     """能量项: U(n_i) = ΔE_i n_i - ΔE_i cos(2π n_i)"""
@@ -411,7 +412,7 @@ def PlotStressBoundary(R0):
     return line1, line2
 
 def PlotStressAsy(R0, f_min = 0.01, f_max = 10.0, lineType = '-'):
-    f_val = np.linspace(f_min, f_max, 200)
+    f_val = np.linspace(f_min, f_max, 800)
     Length = Lc(f_val)
     x_val3 = end_to_end_factor3(f_val)
     r_val3 = x_val3*Length
@@ -493,7 +494,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     # 设置标签和标题
     ax1.set_xlabel('End-to-end distance $r$', fontsize=label_fontsize)
     ax1.set_ylabel('Force $f$', fontsize=label_fontsize)
-    ax1.set_title(f'{len(all_f_values)} Chains: Force-extension Curve', 
+    ax1.set_title(f'Force-extension Curve', 
                   fontsize=title_fontsize, pad=20)
     
     # 设置网格
@@ -621,7 +622,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     valid_mask = ~np.isnan(n_mean)
     if np.any(valid_mask):
         lambda_, sigma = StressOptimization(R0, r_mean[valid_mask], unified_f_grid[valid_mask])
-    ax3.plot(lambda_, sigma, color='#d62728', linewidth=lines_linewidth, label='Optimization', zorder=2)
+    ax3.plot(lambda_, sigma, color='#d62728', linewidth=lines_linewidth-3, label='Optimization', zorder=2)
 
     # 绘制边界：蓝色
     PlotStressBoundary(R0)
@@ -635,7 +636,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
     # 设置标签和标题
     ax3.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)
     ax3.set_ylabel('Stress $\sigma/\\rho k_B T$', fontsize=label_fontsize)
-    ax3.set_title(f'Constitutive curve', 
+    ax3.set_title(f'Constitutive curve: $R_0={R0:.1f}$', 
                   fontsize=title_fontsize, pad=20)
     
     # 设置网格
@@ -646,7 +647,7 @@ def create_visualization(all_f_values, all_r_values, all_n_values,
                edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax3.set_xlim(1.0, alpha*N*xi_f/R0)
+    ax3.set_xlim(1.0, lambda_max)
     ax3.set_ylim(0.0, 100.0)
     
     # 设置刻度参数
@@ -716,7 +717,7 @@ def main():
     print("=" * 80)
     
     # ============ 在这里指定文件路径 ============
-    data_dir = "/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_4_results"
+    data_dir = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_results"
     output_dir = data_dir  # 保存结果的目录
     num_chains = 100
     
@@ -743,7 +744,7 @@ def main():
         return
     
     # 创建统一的力值网格
-    unified_f_grid = create_unified_grid(all_f_values, f_min=0.0, f_max=10.0, num_points=1000)
+    unified_f_grid = create_unified_grid(all_f_values, f_min=0.0, f_max=10.0, num_points=5000)
     print(f"统一力值网格点数: {len(unified_f_grid)}")
     
     # 将所有链的数据插值到统一网格上

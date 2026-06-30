@@ -95,8 +95,9 @@ alpha = 7.6      # 解折叠系数
 E_mean = 11.9  # 平均能量差
 E_std = 1.7    # 能量差的标准差
 
-N = 1.0     # domain 的数量
-k1 = 7.5
+N = 10.0     # domain 的数量
+M = 300
+k1 = 6.5
 k2 = 1.50
 R0 = 10.0    # 初始首末端距离
 lambda_max = 25.0  # 最大伸长比
@@ -717,34 +718,22 @@ def main():
     print("=" * 80)
     
     # ============ 在这里指定文件路径 ============
-    data_dir = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_results"
+    data_dir = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_results"
     output_dir = data_dir  # 保存结果的目录
-    num_chains = 100
-    
-    # 如果没有命令行参数，使用默认路径
-    if len(sys.argv) > 1:
-        data_dir = sys.argv[1]
-        output_dir = data_dir
-    
-    if len(sys.argv) > 2:
-        output_dir = sys.argv[2]
-    
-    if len(sys.argv) > 3:
-        num_chains = int(sys.argv[3])
     
     print(f"数据目录: {data_dir}")
     print(f"输出目录: {output_dir}")
-    print(f"链数量: {num_chains}")
+    print(f"链数量: {M}")
     
     # 处理所有链的数据
-    all_f_values, all_r_values, all_n_values = process_all_chains(data_dir, num_chains)
+    all_f_values, all_r_values, all_n_values = process_all_chains(data_dir, M)
     
     if len(all_f_values) == 0:
         print("未找到任何链的数据，程序退出")
         return
     
     # 创建统一的力值网格
-    unified_f_grid = create_unified_grid(all_f_values, f_min=0.0, f_max=10.0, num_points=5000)
+    unified_f_grid = create_unified_grid(all_f_values, f_min=0.0, f_max=10.0, num_points=1000)
     print(f"统一力值网格点数: {len(unified_f_grid)}")
     
     # 将所有链的数据插值到统一网格上

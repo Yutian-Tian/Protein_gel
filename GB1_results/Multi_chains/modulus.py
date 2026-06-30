@@ -100,10 +100,11 @@ E_mean = 11.9  # 平均能量差
 E_std = 1.7    # 能量差的标准差
 
 N = 10.0     # domain 的数量
-k1 = 7.5
+M = 300
+k1 = 6.5
 k2 = 1.50
-R0 = 10.0    # 初始首末端距离
-lambda_max = 20.0  # 最大伸长比
+R0_val = [5.0]    # 初始首末端距离
+lambda_max = 40.0  # 最大伸长比
 
 def Lc(f):
     """
@@ -141,17 +142,18 @@ def load_average_curve_data(file_path):
 
     return f_val, r_val
 
-def PlotModulusMS(R0):
+def ModulusMS(R0):
     # 使用Marko-Siggia绘制
     x_MS = np.linspace(0.01, 0.99, 1000)
     f_MS = MSforce(x_MS)
     r_MS = x_MS * Lc(f_MS)
     lambda_, stress_ = StressOptimization(R0, N, r_MS, f_MS)
     modulus_ = np.gradient(stress_, lambda_)
+
     # lambda_MS, modulus_MS = compute_modulus_uniform(lambda_, stress_)
-    line_MS = plt.plot(lambda_, modulus_, '-', color='#000000', linewidth=lines_linewidth, label=f'Marko-Siggia', zorder=4)
-    
-    return line_MS
+    # line_MS = plt.plot(lambda_MS, modulus_MS, '-', color='#000000', linewidth=lines_linewidth, label=f'Marko-Siggia', zorder=4)
+
+    return lambda_, modulus_
 
 def StressOptimization(R0, N, r_val, f_val):
     Re = R0
@@ -282,14 +284,17 @@ def compute_modulus_unequal(lambda_, sigma):
 def create_visualization(save_dir=None):
 
     fig, ax = plt.subplots(1, 1, figsize=(12, 9))
-    filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_results/average_curves.csv"
+    #ax.set_xscale('log')
+    filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_results/average_curves.csv"
     f_val, r_val = load_average_curve_data(filepath)
-    lambda_, sigma = StressOptimization(R0, N, r_val, f_val)
-    modulus = np.gradient(sigma, lambda_)
-    ax.scatter(lambda_, modulus, label=f'$R_0={R0:.0f}$', s=lines_markersize, alpha=0.8)
-    # lambda_smooth, modulus = compute_modulus_uniform(lambda_, sigma)
-    # ax.scatter(lambda_smooth, modulus, label=f'$R_0={R0:.0f}$', s=lines_markersize, alpha=0.8)
-    PlotModulusMS(R0)  # 绘制Marko-Siggia曲线
+    for R0 in R0_val:
+        lambda_, sigma = StressOptimization(R0, N, r_val, f_val)
+        modulus = np.gradient(sigma, lambda_)
+        ax.scatter(lambda_, modulus, label=f'Optmization', s=lines_markersize, alpha=0.8)
+        # lambda_smooth, modulus = compute_modulus_uniform(lambda_, sigma)
+        # ax.scatter(lambda_smooth, modulus, label=f'$R_0={R0:.0f}$', s=lines_markersize, alpha=0.8)
+        lambda_MS, modulus_MS = ModulusMS(R0)  # 获取Marko-Siggia模量数据
+        ax.plot(lambda_MS, modulus_MS, '-', color='#000000', linewidth=lines_linewidth, zorder=4)
 
     # 设置标签和标题
     ax.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)
@@ -304,8 +309,8 @@ def create_visualization(save_dir=None):
                edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax.set_xlim(1.0, lambda_max)
-    ax.set_ylim(0.0, 20.0)
+    ax.set_xlim(1.01, lambda_max)
+    ax.set_ylim(-1.0, 5.0)
     
     # 设置刻度参数
     ax.tick_params(axis='both', which='major', 

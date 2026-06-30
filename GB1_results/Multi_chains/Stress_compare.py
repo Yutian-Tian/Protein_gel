@@ -39,7 +39,7 @@ ytick_major_size = 10
 grid_linewidth = 1
 grid_alpha = 0.4
 lines_linewidth = 5
-lines_markersize = 15
+lines_markersize = 35
 
 # 刻度方向
 xtick_direction = 'in'
@@ -94,12 +94,12 @@ alpha = 7.6      # 解折叠系数
 E_mean = 11.9  # 平均能量差
 E_std = 1.7    # 能量差的标准差
 
-# N_val = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]     # domain 的数量
-N_val = [4.0, 10.0]
+N_val = [10.0]     # domain 的数量
+M = 300
 k1 = 6.5
 k2 = 1.50
-R0 = 10.0    # 初始首末端距离
-lambda_max = 20.0  # 最大伸长比
+R0 = 5.0    # 初始首末端距离
+lambda_max = 40.0  # 最大伸长比
 
 
 def load_average_curve_data(file_path):
@@ -170,7 +170,7 @@ def StressOptimization(R0, N, r_val, f_val):
 def create_visualization(save_dir=None):
     fig, ax = plt.subplots(1, 1, figsize=(12, 9))
     for N in N_val:
-        filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_results/average_curves.csv"
+        filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_results/average_curves.csv"
         f_val, r_val = load_average_curve_data(filepath)
         lambda_, sigma = StressOptimization(R0, N, r_val, f_val)
         ax.scatter(lambda_, sigma, label=f'N={int(N)}', s=lines_markersize, alpha=0.8)
@@ -188,8 +188,9 @@ def create_visualization(save_dir=None):
                edgecolor='none', loc='best')
     
     # 设置坐标轴范围
-    ax.set_xlim(1.0, lambda_max)
-    ax.set_ylim(0.0, 40.0)
+    # ax.set_xlim(1.0, lambda_max)
+    ax.set_xlim(30.0, 38.0)
+    ax.set_ylim(8.0, 12.0)
     
     # 设置刻度参数
     ax.tick_params(axis='both', which='major', 

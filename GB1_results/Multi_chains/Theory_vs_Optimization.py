@@ -718,7 +718,7 @@ def main():
     print("=" * 80)
     
     # ============ 在这里指定文件路径 ============
-    data_dir = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_results"
+    data_dir = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results"
     output_dir = data_dir  # 保存结果的目录
     
     print(f"数据目录: {data_dir}")
@@ -733,7 +733,7 @@ def main():
         return
     
     # 创建统一的力值网格
-    unified_f_grid = create_unified_grid(all_f_values, f_min=0.0, f_max=10.0, num_points=1000)
+    unified_f_grid = create_unified_grid(all_f_values, f_min=0.0, f_max=10.0, num_points=2000)
     print(f"统一力值网格点数: {len(unified_f_grid)}")
     
     # 将所有链的数据插值到统一网格上

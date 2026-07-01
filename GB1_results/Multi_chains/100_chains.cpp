@@ -26,9 +26,9 @@ const double E_std = 1.7;      // 解折叠能标准差
 const double E_delta = 5.0;    // 能量截断范围
 const int N = 10;              // 每条链的domain数量
 const int M = 300;             // 链的总数量
-const int r_grid = 100;        // r方向网格数
-const int n_grid = 10;         // n方向网格数
-const int f_grid_initial = 100;// 初始力值网格数
+const int r_grid = 200;        // r方向网格数
+const int n_grid = 20;         // n方向网格数
+const int f_grid_initial = 5000;// 初始力值网格数
 const double f_max = 10.0;     // 最大扫描力值
 
 // 自适应细化参数

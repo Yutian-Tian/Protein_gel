@@ -285,7 +285,7 @@ def create_visualization(save_dir=None):
 
     fig, ax = plt.subplots(1, 1, figsize=(12, 9))
     #ax.set_xscale('log')
-    filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_results/average_curves.csv"
+    filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
     f_val, r_val = load_average_curve_data(filepath)
     for R0 in R0_val:
         lambda_, sigma = StressOptimization(R0, N, r_val, f_val)

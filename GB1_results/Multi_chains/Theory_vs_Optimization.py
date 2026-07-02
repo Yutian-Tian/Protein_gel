@@ -95,7 +95,7 @@ alpha = 7.6      # 解折叠系数
 E_mean = 11.9  # 平均能量差
 E_std = 1.7    # 能量差的标准差
 
-N = 10.0     # domain 的数量
+N = 1.0     # domain 的数量
 M = 300
 k1 = 6.5
 k2 = 1.50
@@ -714,7 +714,7 @@ def save_average_data(unified_f_grid, r_mean, n_mean, r_std=None, n_std=None, sa
 def main():
     """主程序"""
     print("=" * 80)
-    print("100条链数据处理和可视化程序")
+    print("多链数据处理和可视化程序")
     print("=" * 80)
     
     # ============ 在这里指定文件路径 ============

@@ -103,8 +103,8 @@ N = 10.0     # domain 的数量
 M = 300
 k1 = 6.5
 k2 = 1.50
-R0_val = [5.0, 10.0, 15.0, 20.0]    # 初始首末端距离
-lambda_max = 50.0  # 最大伸长比
+R0_val = [2.0, 5.0, 10.0, 15.0, 20.0]    # 初始首末端距离
+lambda_max = 1000.0  # 最大伸长比
 
 def Lc(f):
     """
@@ -285,6 +285,7 @@ def create_visualization(save_dir=None):
 
     fig, ax = plt.subplots(1, 1, figsize=(10, 8))
     ax.set_xscale('log')
+    ax.set_yscale('log')
 
     for R0 in R0_val:
         lambda_, modulus = ModulusMS(R0)  # 获取Marko-Siggia模量数据
@@ -304,7 +305,7 @@ def create_visualization(save_dir=None):
     
     # 设置坐标轴范围
     ax.set_xlim(1.01, lambda_max)
-    ax.set_ylim(-1.0, 20.0)
+    ax.set_ylim(-1.0, 1000.0)
     
     # 设置刻度参数
     ax.tick_params(axis='both', which='major', 

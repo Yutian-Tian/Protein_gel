@@ -1,3 +1,6 @@
+// 并行计算版本的多链优化
+// 编译命令：g++ -fopenmp -O3 -o <process_name> Multi_chains_pall.cpp
+
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -25,12 +28,12 @@ struct SimParams {
     double E_mean = 11.9;
     double E_std = 1.7;
     double E_delta = 5.0;
-    int N_domains = 10;      // 每条链domain数
+    int N_domains = 1;      // 每条链domain数
     int M_chains = 300;      // 链总数
     int n_grid = 20;         // n方向初始网格点数
     int f_grid_initial = 5000;
     double f_max = 10.0;
-    double refinement_threshold = 0.1;
+    double refinement_threshold = 0.05;
     int max_refinement_level = 10;
     double tolerance = 1e-8;
 

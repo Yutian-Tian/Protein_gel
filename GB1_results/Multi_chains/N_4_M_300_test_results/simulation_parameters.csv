@@ -1,0 +1,16 @@
+Parameter,Value,Description
+xi_f,3.6,折叠态长度
+alpha,7.6,解折叠长度系数
+E_mean,11.9,解折叠能均值
+E_std,1.7,解折叠能标准差
+E_delta,5,能量截断半宽
+N_domains_per_chain,4,每条链domain数量
+N_chains,300,链数量
+n_grid,20,n方向网格数
+f_grid_initial,5000,初始力网格数
+f_max,10,最大力值
+refinement_threshold,0.05,力细化阈值
+max_refinement_level,10,最大细化层数
+tolerance,1e-08,最小力间隔
+upper_bound,16.9,ΔE上界
+lower_bound,6.9,ΔE下界

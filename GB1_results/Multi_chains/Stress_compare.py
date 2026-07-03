@@ -92,9 +92,9 @@ N_val = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]   # domain 的数量
 M = 300
 k1 = 6.5
 k2 = 1.50
-R0 = 10.0            # 初始首末端距离
-lambda_max = 100.0  # 最大伸长比
-Stress_max = 10.0  # 最大应力值
+R0 = 20.0            # 初始首末端距离
+lambda_max = 10.0  # 最大伸长比
+Stress_max = 200.0  # 最大应力值
 
 def Lc(f, N):
     """
@@ -274,7 +274,7 @@ def create_visualization(save_dir=None):
               edgecolor='none', loc='best')
 
     ax2.set_xlim(1.0, 3.0)
-    ax2.set_ylim(10.0, 50.0)
+    ax2.set_ylim(20.0, 80.0)
 
     ax2.tick_params(axis='both', which='major',
                     direction=xtick_direction,
@@ -308,9 +308,10 @@ def create_visualization(save_dir=None):
     for idx, N in enumerate(N_val):
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
+        lam_val = r_val / R0
         Lc_val = (N - n_val) * xi_f + n_val* alpha * xi_f
         x_val = r_val / Lc_val
-        ax3.plot(r_val/R0, x_val, 'o', color=colors[idx], markerfacecolor='none',
+        ax3.plot(lam_val, x_val, 'o', color=colors[idx], markerfacecolor='none',
                 markeredgewidth=2, markersize=8,
                 label=f'N={int(N)}', zorder=4)
 
@@ -334,7 +335,7 @@ def create_visualization(save_dir=None):
               edgecolor='none', loc='best')
 
     ax3.set_xlim(1.0, 3.0)
-    ax3.set_ylim(0.2, 1.0)
+    ax3.set_ylim(0.4, 0.9)
 
     ax3.tick_params(axis='both', which='major',
                     direction=xtick_direction,

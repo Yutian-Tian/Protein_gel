@@ -24,7 +24,7 @@ math_bf = 'Times New Roman:bold'
 title_fontsize = 35
 label_fontsize = 35
 tick_fontsize = 35
-legend_fontsize = 25
+legend_fontsize = 20
 legend_title_fontsize = 35
 
 axes_linewidth = 2
@@ -92,9 +92,9 @@ N_val = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]   # domain 的数量
 M = 300
 k1 = 6.5
 k2 = 1.50
-R0 = 20.0            # 初始首末端距离
-lambda_max = 10.0  # 最大伸长比
-Stress_max = 200.0  # 最大应力值
+R0 = 10.0            # 初始首末端距离
+lambda_max = 20.0  # 最大伸长比
+Stress_max = 100.0  # 最大应力值
 
 def Lc(f, N):
     """
@@ -240,7 +240,7 @@ def create_visualization(save_dir=None):
 
     plt.tight_layout()
     if save_dir:
-        save_path1 = os.path.join(save_dir, 'Stress_compare.png')
+        save_path1 = os.path.join(save_dir, f'Stress_compare_R0={R0:.1f}.png')
         fig1.savefig(save_path1, dpi=savefig_dpi, bbox_inches='tight',
                      facecolor='white', edgecolor='none')
         print(f"本构曲线已保存至: {save_path1}")
@@ -273,8 +273,8 @@ def create_visualization(save_dir=None):
               fontsize=legend_fontsize, framealpha=0.9,
               edgecolor='none', loc='best')
 
-    ax2.set_xlim(1.0, 3.0)
-    ax2.set_ylim(20.0, 80.0)
+    ax2.set_xlim(1.0, 8.0)
+    ax2.set_ylim(10.0, 120.0)
 
     ax2.tick_params(axis='both', which='major',
                     direction=xtick_direction,
@@ -309,16 +309,18 @@ def create_visualization(save_dir=None):
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
         lam_val = r_val / R0
-        Lc_val = (N - n_val) * xi_f + n_val* alpha * xi_f
-        x_val = r_val / Lc_val
-        ax3.plot(lam_val, x_val, 'o', color=colors[idx], markerfacecolor='none',
+        n_frac = n_val / N
+        xc = 0.542
+        n_theo = R0/(xc*N*(alpha-1)*xi_f) *lam_val - 1/(alpha - 1)
+        ax3.plot(lam_val, n_frac, 'o', color=colors[idx], markerfacecolor='none',
                 markeredgewidth=2, markersize=8,
                 label=f'N={int(N)}', zorder=4)
+        ax3.plot(lam_val, n_theo, '--', color='black', linewidth=lines_linewidth, alpha=0.8, zorder=5)
 
         # 标签与标题
     ax3.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)
-    ax3.set_ylabel('End-to-end factor $x$', fontsize=label_fontsize)
-    ax3.set_title(f'End-to-end factor vs. strain', 
+    ax3.set_ylabel('Unfolding fraction $n/N$', fontsize=label_fontsize)
+    ax3.set_title(f'Unfolding fraction vs. strain', 
                   fontsize=title_fontsize, pad=20)
 
     # 网格
@@ -334,8 +336,8 @@ def create_visualization(save_dir=None):
               fontsize=legend_fontsize, framealpha=0.9,
               edgecolor='none', loc='best')
 
-    ax3.set_xlim(1.0, 3.0)
-    ax3.set_ylim(0.4, 0.9)
+    ax3.set_xlim(1.0, 8.0)
+    ax3.set_ylim(-0.1, 1.1)
 
     ax3.tick_params(axis='both', which='major',
                     direction=xtick_direction,
@@ -359,7 +361,7 @@ def create_visualization(save_dir=None):
 
     plt.tight_layout()
     if save_dir:
-        save_path3 = os.path.join(save_dir, f'R0={R0}_x_compare.png')
+        save_path3 = os.path.join(save_dir, f'R0={R0}_n_compare.png')
         fig3.savefig(save_path3, dpi=savefig_dpi, bbox_inches='tight',
                      facecolor='white', edgecolor='none')
         print(f"本构曲线已保存至: {save_path3}") 
@@ -370,7 +372,7 @@ def main():
     print("开始生成本构曲线比较图...")
     print("=" * 80)
 
-    data_dir = "/home/tyt/project/protein_gel/GB1_results/Multi_chains"
+    data_dir = "/home/tyt/project/protein_gel/GB1_results/Networks_results/R0_Constant"  # 可修改为你希望的输出路径
     output_dir = data_dir
     create_visualization(save_dir=output_dir)
 

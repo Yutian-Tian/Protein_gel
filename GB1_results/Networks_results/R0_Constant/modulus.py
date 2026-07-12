@@ -353,7 +353,7 @@ def main():
     print("=" * 80)
     
     # ============ 在这里指定文件路径 ============
-    data_dir = "/home/tyt/project/protein_gel/GB1_results/Multi_chains"
+    data_dir = "/home/tyt/project/protein_gel/GB1_results/Networks_results"  # 可修改为你希望的输出路径
     output_dir = data_dir  # 保存结果的目录
     
     # 创建可视化并保存

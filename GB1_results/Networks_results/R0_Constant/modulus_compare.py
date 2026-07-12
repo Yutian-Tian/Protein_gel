@@ -173,7 +173,7 @@ def create_visualization(save_dir=None):
         print(f"模量曲线已保存至: {path}")
 
 def main():
-    output_dir = '/home/tyt/project/protein_gel/GB1_results/Multi_chains'   # 可修改为你希望的输出路径
+    output_dir = '/home/tyt/project/protein_gel/GB1_results/Networks_results'   # 可修改为你希望的输出路径
     create_visualization(save_dir=output_dir)
 
 if __name__ == "__main__":

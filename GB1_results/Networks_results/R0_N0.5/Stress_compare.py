@@ -92,7 +92,7 @@ N_val = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]   # domain 的数量
 M = 300
 k1 = 6.5
 k2 = 1.48
-kR = 3.0           # 初始首末端距离 R0 = kR * N**0.5
+kR = 2.68           # 初始首末端距离 R0 = kR * N**0.5
 lambda_max = 30.0  # 最大伸长比
 Stress_max = 40.0  # 最大应力值
 
@@ -109,6 +109,43 @@ def MSforce(x):
                      np.inf)
     return force
 
+def x_theory(lam, N):
+    """
+    新增函数：计算图1中的 x(lambda) 解析解
+    根据图1的解析公式计算相对伸长率 x(lambda)。
+    公式推导：x(λ) = (-B + sqrt(B^2 + 4*A*x0*λ)) / (2*A)
+    参数说明：
+        lam: 拉伸比 λ (可以是标量或 numpy 数组)
+        N  : 链段数量 / domain 数量
+    """
+    # 1. 使用牛顿迭代法求解 xc，满足 fhat(xc) = k2 = 1.48
+    xc = 0.5  # 初始猜测值
+    for _ in range(100):
+        f_val = 1/(4*(1-xc)**2) - 1/4 + xc - k2
+        f_prime_val = 1/(2*(1-xc)**3) + 1
+        xc_new = xc - f_val / f_prime_val
+        if abs(xc_new - xc) < 1e-12:
+            xc = xc_new
+            break
+        xc = xc_new
+
+    # 2. 计算在 xc 处的导数 f'(xc)
+    f_prime_xc = 1/(2*(1-xc)**3) + 1
+    
+    # 3. 计算中间参数 A, B, x0
+    # 图1中的 μ，物理上对应代码中的 alpha（最大展开长度 / 折叠长度）
+    A = (alpha - 1) / 2 * k1 * f_prime_xc
+    B = (alpha + 1) / 2 - A * xc
+    
+    # 根据代码，R0 = kR * N**0.5，得出 x0 = R0 / (N * xi_f)
+    x0 = kR / (np.sqrt(N) * xi_f) 
+    
+    # 4. 套用一元二次方程求根公式计算 x(lambda)
+    inside_sqrt = B**2 + 4 * A * x0 * lam
+    x_lambda_val = (-B + np.sqrt(inside_sqrt)) / (2 * A)
+    
+    return x_lambda_val
+
 def PlotStressMS(R0, N=None):
     """
     使用Marko-Siggia模型绘制理论曲线
@@ -124,7 +161,7 @@ def PlotStressMS(R0, N=None):
         L0 = xi_f * alpha
         r_MS = x_MS * L0
         # 标记一下，后面不参与 legend 中的 N 标签
-    lambda_MS, sigma_MS = StressOptimization(R0, N if N is not None else 1.0, r_MS, f_MS)
+    lambda_MS, sigma_MS = StressOptimization(R0, r_MS, f_MS)
     return lambda_MS, sigma_MS
 
 def load_average_curve_data(file_path):
@@ -144,7 +181,7 @@ def load_average_curve_data(file_path):
     n_val = data.iloc[:, 2].values
     return f_val, r_val, n_val
 
-def StressOptimization(R0, N, r_val, f_val):
+def StressOptimization(R0, r_val, f_val):
     Re = R0
     r_val = np.asarray(r_val)
     f_val = np.asarray(f_val)
@@ -181,10 +218,10 @@ def create_visualization(save_dir=None):
     ax1.set_yscale('log')
 
     for idx, N in enumerate(N_val):
+        R0 = kR * N**0.5
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
-        R0 = kR * N**0.5
-        lambda_sim, sigma_sim = StressOptimization(R0, N, r_val, f_val)
+        lambda_sim, sigma_sim = StressOptimization(R0, r_val, f_val)
 
         # 绘制模拟数据点：空心圆
         ax1.plot(lambda_sim, sigma_sim, 'o',
@@ -200,7 +237,7 @@ def create_visualization(save_dir=None):
     # 标签与标题
     ax1.set_xlabel('Stretch ratio $\\lambda$', fontsize=label_fontsize)
     ax1.set_ylabel('Stress $\\sigma/\\rho k_B T$', fontsize=label_fontsize)
-    ax1.set_title(f'Constitutive curve: $R_0={kR:.1f} \sqrt{{N}}$', 
+    ax1.set_title(f'Constitutive curve: $R_0={kR:.2f} \sqrt{{N}}$', 
                   fontsize=title_fontsize, pad=20)
 
     # 网格
@@ -248,17 +285,21 @@ def create_visualization(save_dir=None):
 
     fig2, ax2 = plt.subplots(1, 1, figsize=(12, 9))
     for idx, N in enumerate(N_val):
+        R0 = kR * N**0.5
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
         Lc_val = (N - n_val) * xi_f + n_val* alpha * xi_f
-        ax2.plot(r_val/R0, Lc_val, 'o', color=colors[idx], markerfacecolor='none',
+        x_val = r_val / Lc_val
+        x_val_theo = x_theory(r_val / R0, N)
+        ax2.plot(r_val/R0, x_val, 'o', color=colors[idx], markerfacecolor='none',
                 markeredgewidth=2, markersize=8,
                 label=f'N={int(N)}', zorder=4)
-
+        ax2.plot(r_val/R0, x_val_theo, '-', color='black', linewidth=2, zorder=5)
+        
         # 标签与标题
     ax2.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)
-    ax2.set_ylabel('Contour length $L_c$', fontsize=label_fontsize)
-    ax2.set_title(f'Contour length vs. strain', 
+    ax2.set_ylabel('End-to-end factor $x$', fontsize=label_fontsize)
+    ax2.set_title(f'End-to-end factor vs. strain', 
                   fontsize=title_fontsize, pad=20)
 
     # 网格
@@ -274,8 +315,8 @@ def create_visualization(save_dir=None):
               fontsize=legend_fontsize, framealpha=0.9,
               edgecolor='none', loc='best')
 
-    ax2.set_xlim(1.0, 13.0)
-    ax2.set_ylim(0.0, 120.0)
+    ax2.set_xlim(1.0, 16.0)
+    ax2.set_ylim(0.5, 0.6)
 
     ax2.tick_params(axis='both', which='major',
                     direction=xtick_direction,
@@ -299,7 +340,7 @@ def create_visualization(save_dir=None):
 
     plt.tight_layout()
     if save_dir:
-        save_path2 = os.path.join(save_dir, f'k_R={kR}_Lc_compare.png')
+        save_path2 = os.path.join(save_dir, f'k_R={kR}_x_compare.png')
         fig2.savefig(save_path2, dpi=savefig_dpi, bbox_inches='tight',
                      facecolor='white', edgecolor='none')
         print(f"本构曲线已保存至: {save_path2}")
@@ -307,6 +348,7 @@ def create_visualization(save_dir=None):
 
     fig3, ax3 = plt.subplots(1, 1, figsize=(12, 9))
     for idx, N in enumerate(N_val):
+        R0 = kR * N**0.5
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
         lam_val = r_val / R0
@@ -334,7 +376,7 @@ def create_visualization(save_dir=None):
               fontsize=legend_fontsize, framealpha=0.9,
               edgecolor='none', loc='best')
 
-    ax3.set_xlim(1.0, 5.0)
+    ax3.set_xlim(1.0, 8.0)
     ax3.set_ylim(-0.1, 1.1)
 
     ax3.tick_params(axis='both', which='major',

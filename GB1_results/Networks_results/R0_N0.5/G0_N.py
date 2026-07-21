@@ -227,9 +227,9 @@ def plot_G0_vs_R0_area2(R0_val, save_dir=None):
     ax.set_xscale('log')
     ax.set_yscale('log')
     
-    ax.plot(R0_val, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
+    ax.plot(N_vals, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
     
-    R0_theo = np.linspace(0.1, float(R0_val[-1]), Rtheo_points)
+    R0_theo = np.linspace(0.1, float(N_vals[-1]), Rtheo_points)
     G0_theo = [calculate_G0_area2(r0, N_Area2_fixed) for r0 in R0_theo]
     ax.plot(R0_theo, G0_theo, '-', linewidth=lines_linewidth, label='Theoretical (Area 2)', alpha=0.8, zorder=5)
     
@@ -246,7 +246,7 @@ def plot_G0_vs_R0_area2(R0_val, save_dir=None):
     ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
     ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
-    ax.set_xlim(1.0, float(R0_val[-1]) + 1.0)
+    ax.set_xlim(1.0, float(N_vals[-1]) + 1.0)
     ax.set_ylim(0.1, 100.0)
     ax.tick_params(axis='both', which='major', direction=xtick_direction, top=xtick_top, right=ytick_right)
     ax.minorticks_on()

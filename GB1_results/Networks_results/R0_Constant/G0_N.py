@@ -282,8 +282,8 @@ def plot_G0_vs_N(N_val, save_dir=None):
 
     ax2.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
 
-    ax2.set_xlim(N_val[0], N_val[-1] + 1.0)
-    ax2.set_ylim(30.0, 80.0)
+    ax2.set_xlim(0.1, N_val[-1] + 1.0)
+    ax2.set_ylim(30.0, 1000.0)
 
     ax2.tick_params(axis='both', which='major', direction=xtick_direction,
                    top=xtick_top, right=ytick_right, width=xtick_major_width,

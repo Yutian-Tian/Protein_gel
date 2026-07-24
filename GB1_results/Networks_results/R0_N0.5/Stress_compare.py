@@ -376,7 +376,7 @@ def create_visualization(save_dir=None):
               fontsize=legend_fontsize, framealpha=0.9,
               edgecolor='none', loc='best')
 
-    ax3.set_xlim(1.0, 8.0)
+    ax3.set_xlim(1.0, 20)
     ax3.set_ylim(-0.1, 1.1)
 
     ax3.tick_params(axis='both', which='major',

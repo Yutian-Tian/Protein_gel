@@ -227,18 +227,31 @@ def plot_G0_vs_R0_area2(R0_val, save_dir=None):
     # 数值优化解
     ax.plot(R0_val, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
     
-    # 理论解析解
+    # 理论解析解 (Area2)
     R0_theo = np.linspace(0.1, float(R0_val[-1]), Rtheo_points)
     G0_theo = [calculate_G0_area2(r0, N_Area2) for r0 in R0_theo]
-    ax.plot(R0_theo, G0_theo, '-', linewidth=lines_linewidth, label='Theoretical', alpha=0.8, zorder=5)
+    ax.plot(R0_theo, G0_theo, '-', linewidth=lines_linewidth, label='Partially Unfolded', alpha=0.8, zorder=5)
     
-    # 【修改点】：标度参考线 G0 ∝ R0²，改为与右端点对齐
-    start_R0 = float(R0_theo[0])
-    end_R0 = float(R0_theo[-1])
-    end_G0 = float(G0_theo[-1])
-    ref_x = [start_R0, end_R0]
-    ref_y = [end_G0 * (start_R0 / end_R0)**2, end_G0]
-    ax.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto R_0^2$', zorder=3)
+    # ---------- 【新增】Area1 理论曲线（使用相同 N=N_Area2 计算，并截断有效范围） ----------
+    R0_theo_filtered = []
+    G0_theo_area1_compare = []
+    for r0 in R0_theo:
+        x0 = r0 / (N_Area2 * xi_f)
+        if x0 < 1.0:  # 仅当物理条件 x0 < 1 时才有效
+            R0_theo_filtered.append(r0)
+            G0_theo_area1_compare.append(calculate_G0_area1(r0, N_Area2))
+    
+    ax.plot(R0_theo_filtered, G0_theo_area1_compare, '--b', linewidth=lines_linewidth, 
+            label='Fully Folded', alpha=0.8, zorder=5)
+    # --------------------------------------------------------------------------------------
+
+    # 标度参考线 G0 ∝ R0²，改为与右端点对齐
+    #start_R0 = float(R0_theo[0])
+    #end_R0 = float(R0_theo[-1])
+    #end_G0 = float(G0_theo[-1])
+    #ref_x = [start_R0, end_R0]
+    #ref_y = [end_G0 * (start_R0 / end_R0)**2, end_G0]
+    #ax.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto R_0^2$', zorder=3)
 
     ax.set_xlabel('Initial end-to-end distance $R_0$', fontsize=label_fontsize)
     ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
@@ -247,7 +260,7 @@ def plot_G0_vs_R0_area2(R0_val, save_dir=None):
     ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
     ax.set_xlim(1.0, float(R0_val[-1]) + 1.0)
-    ax.set_ylim(0.1, 100.0)
+    ax.set_ylim(0.1, 100.0)  
 
     ax.tick_params(axis='both', which='major', direction=xtick_direction, top=xtick_top, right=ytick_right)
     ax.minorticks_on()

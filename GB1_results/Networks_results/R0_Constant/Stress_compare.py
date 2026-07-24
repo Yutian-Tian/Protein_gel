@@ -301,7 +301,7 @@ def create_visualization(save_dir=None):
         save_path2 = os.path.join(save_dir, f'R0={R0}_Lc_compare.png')
         fig2.savefig(save_path2, dpi=savefig_dpi, bbox_inches='tight',
                      facecolor='white', edgecolor='none')
-        print(f"本构曲线已保存至: {save_path2}")
+        print(f"轮廓长度曲线已保存至: {save_path2}")
 
 
     fig3, ax3 = plt.subplots(1, 1, figsize=(12, 9))
@@ -364,7 +364,7 @@ def create_visualization(save_dir=None):
         save_path3 = os.path.join(save_dir, f'R0={R0}_n_compare.png')
         fig3.savefig(save_path3, dpi=savefig_dpi, bbox_inches='tight',
                      facecolor='white', edgecolor='none')
-        print(f"本构曲线已保存至: {save_path3}") 
+        print(f"解折叠曲线已保存至: {save_path3}") 
 
 
 def main():

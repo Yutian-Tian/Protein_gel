@@ -11,6 +11,7 @@ import os
 from scipy.interpolate import interp1d
 import sys
 from scipy.signal import savgol_filter
+from scipy.optimize import brentq
 
 # ============ 字体设置 ============
 font_path = '/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf'
@@ -91,7 +92,7 @@ alpha = 7.6         # 解折叠系数
 N_val = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0, 15.0]  
 
 R0_Area1 = 1.5                           
-R0_Area2 = 20.0                          
+R0_Area2 = 10.0                          
 
 k1 = 6.5
 k2 = 1.48           
@@ -177,15 +178,15 @@ def calculate_G0_area2(R0, N):
     
     # 1. 定义 MS 力-伸长关系函数和其导数
     def f(x):
-        if x >= 0.9999: return 1e10 # 避免除零
+        if x >= 0.9999: return 1e10 
         return 0.25 * ((1 - x)**(-2) - 1 + 4*x)
     
     def f_prime(x):
         if x >= 0.9999: return 1e10
         return 0.5 * (1 - x)**(-3) + 1
 
-    # 2. 找出 f(x) = k2 的临界平衡点 xc (数值解析值)
-    xc = 0.541  # 满足 f(xc) = 1.48 的根
+    # 2. 【修改此处】使用数值方法严格求解 f(xc) = k2 = 1.48 的根
+    xc = brentq(lambda x: f(x) - k2, 0.1, 0.9)  
     
     f_prime_xc = f_prime(xc)
     
@@ -210,99 +211,121 @@ def calculate_G0_area2(R0, N):
     return G0
 # ============================================================
 
-def plot_G0_vs_N(N_val, save_dir=None):
-    # ===============第一种初态===============
+def plot_G0_vs_N_area1(N_val, save_dir=None):
+    """可视化第一种初态（Fully Folded，Area1）的 G0 随 N 变化"""
     R0 = R0_Area1  
     G0_val = [initial_modulus(R0, n) for n in N_val]  
 
-    fig1, ax1 = plt.subplots(figsize=(10, 8))
-    ax1.set_xscale('log')
-    ax1.set_yscale('log')
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     
-    ax1.plot(N_val, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
+    ax.plot(N_val, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
 
     N_theo = np.logspace(np.log10(0.5), np.log10(N_val[-1] + 2.0), Rtheo_points)
     G0_theo = [calculate_G0_area1(R0, n) for n in N_theo]
-    ax1.plot(N_theo, G0_theo, '-', linewidth=lines_linewidth, label='Theoretical', alpha=0.8, zorder=5)
+    ax.plot(N_theo, G0_theo, '-', linewidth=lines_linewidth, label='Theoretical', alpha=0.8, zorder=5)
 
     ref_x = [N_theo[0], N_theo[-1]]
     ref_y = [G0_theo[-1] * (N_theo[-1] / N_theo[0]), G0_theo[-1]]
-    ax1.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto N^{-1}$', zorder=3)
+    ax.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto N^{-1}$', zorder=3)
 
-    ax1.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
-    ax1.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
-    ax1.set_title(f'Initial modulus $G_0$ vs $N$ ($R_0={R0:.1f}$)', fontsize=title_fontsize, pad=20)
-    ax1.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
-    ax1.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
+    ax.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
+    ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
+    ax.set_title(f'Initial modulus $G_0$ vs $N$ ($R_0={R0:.1f}$)', fontsize=title_fontsize, pad=20)
+    ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
+    ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
 
-    ax1.set_xlim(0.5, N_val[-1] + 2.0)
-    ax1.set_ylim(0.01, 100.0)
+    ax.set_xlim(0.5, N_val[-1] + 2.0)
+    ax.set_ylim(0.01, 100.0)
 
-    ax1.tick_params(axis='both', which='major', direction=xtick_direction,
+    ax.tick_params(axis='both', which='major', direction=xtick_direction,
                    top=xtick_top, right=ytick_right, width=xtick_major_width,
                    length=xtick_major_size)
-    ax1.tick_params(axis='both', which='minor', direction=xtick_direction,
+    ax.tick_params(axis='both', which='minor', direction=xtick_direction,
                    top=xtick_top, right=ytick_right, width=xtick_major_width*0.75,
                    length=xtick_major_size*0.5)
-    ax1.minorticks_on()
-    for spine in ax1.spines.values():
+    ax.minorticks_on()
+    for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)
 
     plt.tight_layout()
     if save_dir:
         path = os.path.join(save_dir, f'Initial1_G0_vs_N_R0={R0}.png')
-        fig1.savefig(path, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
+        fig.savefig(path, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
         print(f"G0 vs N 曲线(情况1)已保存至: {path}")
+    plt.close(fig)  # 新增：关闭画布释放内存
 
-    # ================第二种初态===========================
+
+def plot_G0_vs_N_area2(N_val, save_dir=None):
+    """可视化第二种初态（Partially Unfolded，Area2）的 G0 随 N 变化"""
     R0 = R0_Area2  
     G0_val = [initial_modulus(R0, n) for n in N_val]  
 
-    fig2, ax2 = plt.subplots(figsize=(10, 8))
-    ax2.set_xscale('log')
-    ax2.set_yscale('log')
+    fig, ax = plt.subplots(figsize=(10, 8))
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     
-    ax2.plot(N_val, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
+    ax.plot(N_val, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
 
     N_theo = np.logspace(np.log10(0.5), np.log10(N_val[-1] + 2.0), Rtheo_points)
-    # ✅ 使用修正后的解析解
+    
+    # ---------- Area2 理论曲线 ----------
     G0_theo = [calculate_G0_area2(R0, n) for n in N_theo]  
-    ax2.plot(N_theo, G0_theo, '-', linewidth=lines_linewidth, label='Theoretical', alpha=0.8, zorder=5)
+    ax.plot(N_theo, G0_theo, '-', linewidth=lines_linewidth, label='Partially Unfolded', alpha=0.8, zorder=5)
+
+    # ---------- Area1 理论曲线（使用相同 R0=R0_Area2 计算，并截断有效范围） ----------
+    # 过滤掉 x0 = R0/(N*xi_f) >= 1 的 N 值，防止 ValueError
+    N_theo_filtered = []
+    G0_theo_area1_compare = []
+    for n in N_theo:
+        x0 = R0 / (n * xi_f)
+        if x0 < 1.0:  # 仅当物理条件成立时才进行计算
+            N_theo_filtered.append(n)
+            G0_theo_area1_compare.append(calculate_G0_area1(R0, n))
+    
+    ax.plot(N_theo_filtered, G0_theo_area1_compare, '--b', linewidth=lines_linewidth, 
+            label='Fully Folded', alpha=0.8, zorder=5)
+    # ----------------------------------------------------------------------------
 
     # 参考线 y ∝ N^(-1)，与右端点对齐
-    ref_x = [N_theo[0], N_theo[-1]]
-    ref_y = [G0_theo[-1] * (N_theo[-1] / N_theo[0]), G0_theo[-1]]
-    ax2.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto N^{-1}$', zorder=3)
+    # ref_x = [N_theo[0], N_theo[-1]]
+    # ref_y = [G0_theo[-1] * (N_theo[-1] / N_theo[0]), G0_theo[-1]]
+    # ax.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto N^{-1}$', zorder=3)
 
-    # ✅ 图例与轴标签调整
-    ax2.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
-    ax2.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
-    ax2.set_title(f'Initial modulus $G_0$ vs $N$ ($R_0={R0:.1f}$)', fontsize=title_fontsize, pad=20)
-    ax2.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
+    ax.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
+    ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
+    ax.set_title(f'Initial modulus $G_0$ vs $N$ ($R_0={R0:.1f}$)', fontsize=title_fontsize, pad=20)
+    ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
+    
 
-    ax2.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
+    ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
 
-    ax2.set_xlim(0.1, N_val[-1] + 1.0)
-    ax2.set_ylim(30.0, 1000.0)
+    ax.set_xlim(1.0, N_val[-1] + 1.0)
+    # 自动调整 y 轴范围以显示所有曲线
+    all_data = G0_val + G0_theo + G0_theo_area1_compare  # 数据也要用截断后的列表，避免min取到空值
+    ax.set_ylim(1.0, 100.0)
 
-    ax2.tick_params(axis='both', which='major', direction=xtick_direction,
+    ax.tick_params(axis='both', which='major', direction=xtick_direction,
                    top=xtick_top, right=ytick_right, width=xtick_major_width,
                    length=xtick_major_size)
-    ax2.tick_params(axis='both', which='minor', direction=xtick_direction,
+    ax.tick_params(axis='both', which='minor', direction=xtick_direction,
                    top=xtick_top, right=ytick_right, width=xtick_major_width*0.75,
                    length=xtick_major_size*0.5)
-    ax2.minorticks_on()
-    for spine in ax2.spines.values():
+    ax.minorticks_on()
+    for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)
 
     plt.tight_layout()
     if save_dir:
         path = os.path.join(save_dir, f'Initial2_G0_vs_N_R0={R0}.png')
-        fig2.savefig(path, dpi=savefig_dpi, bbox_inches='tight',
+        fig.savefig(path, dpi=savefig_dpi, bbox_inches='tight',
                     facecolor='white', edgecolor='none')
         print(f"G0 vs N 曲线(情况2修正后)已保存至: {path}")
+    plt.close(fig)
 
-# ========================== 主函数 ==========================
+
+# ========================== 主函数更新 ==========================
 def main():
     print("=" * 80)
     print("开始生成初始模量 G0 随 N 变化的比较图...")
@@ -311,8 +334,11 @@ def main():
     data_dir = "/home/tyt/project/protein_gel/GB1_results/Networks_results/R0_Constant"  
     output_dir = data_dir  
     
-    print("\n开始生成 G0 随 N 变化曲线...")
-    plot_G0_vs_N(N_val, save_dir=output_dir)
+    print("\n开始生成 G0 随 N 变化曲线(情况1)...")
+    plot_G0_vs_N_area1(N_val, save_dir=output_dir)
+
+    print("\n开始生成 G0 随 N 变化曲线(情况2)...")
+    plot_G0_vs_N_area2(N_val, save_dir=output_dir)
     
     print("=" * 80)
     print("所有曲线生成完成。")

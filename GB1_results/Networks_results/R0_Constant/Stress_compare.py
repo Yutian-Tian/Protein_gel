@@ -94,7 +94,7 @@ k1 = 6.5
 k2 = 1.50
 R0 = 10.0            # 初始首末端距离
 lambda_max = 20.0  # 最大伸长比
-Stress_max = 100.0  # 最大应力值
+Stress_max = 40.0  # 最大应力值
 
 def Lc(f, N):
     """
@@ -177,8 +177,8 @@ def create_visualization(save_dir=None):
     colors = plt.cm.tab10(np.linspace(0, 1, len(N_val)))
 
     fig1, ax1 = plt.subplots(1, 1, figsize=(12, 9))
-    ax1.set_xscale('log')
-    ax1.set_yscale('log')
+    ax1.set_xscale('linear')
+    ax1.set_yscale('linear')
 
     for idx, N in enumerate(N_val):
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
@@ -188,7 +188,7 @@ def create_visualization(save_dir=None):
         # 绘制模拟数据点：空心圆
         ax1.plot(lambda_sim, sigma_sim, 'o',
                 color=colors[idx], markerfacecolor='none',
-                markeredgewidth=2, markersize=8,
+                markeredgewidth=2, markersize=5,
                 label=f'N={int(N)}', zorder=4)
 
         # 绘制对应的理论曲线（实线）
@@ -212,7 +212,7 @@ def create_visualization(save_dir=None):
         if l not in by_label:
             by_label[l] = h
     ax1.legend(by_label.values(), by_label.keys(),
-              fontsize=legend_fontsize, framealpha=0.9,
+              fontsize=1.2*legend_fontsize, framealpha=1.0,
               edgecolor='none', loc='best')
 
     ax1.set_xlim(1.0, lambda_max)

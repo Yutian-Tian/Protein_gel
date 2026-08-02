@@ -81,11 +81,11 @@ plt.rcParams.update({
 xi_f = 3.6
 alpha = 7.6
 k1 = 6.5
-k2 = 1.50
+k2 = 1.48
 kR = 2.68           # 初始首末端距离 R0 = kR * N**0.5
 
 N_Area2_fixed = 8.0    # 部分解折叠模型中固定使用的 N
-N_vals = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]  # 数值优化离散点
+N_vals = np.linspace(1.0, 10.0, 50)  # 数值优化离散点
 Rtheo_points = 200
 
 # ===================== 基础物理函数 =====================
@@ -96,6 +96,11 @@ def MSforce(x):
     return np.where(x < 0.99,
                     0.25 * ((1 - x) ** (-2) - 1 + 4 * x),
                     np.inf)
+
+def R0ms(N):
+    L = N*xi_f
+    Rms = np.sqrt(2*L*(1 - 1/L*(1 - np.exp(-L))))
+    return Rms
 
 def MSforce_derivative(x):
     """Marko-Siggia 力关于 x 的导数 f'(x)"""
@@ -122,7 +127,7 @@ def StressOptimization(R0, N, r_val, f_val):
         sigma[0] = 0.0
     return lambda_, sigma
 
-def initial_modulus_num(R0, N, fit_points=5):
+def initial_modulus_num(R0, N, fit_points=2):
     """数值计算初始模量 G₀"""
     x_MS = np.linspace(0.01, 0.99, 3000)
     f_MS = MSforce(x_MS)
@@ -195,6 +200,51 @@ def calculate_G0_area2(R0, N):
     
     return G0
 
+# ===================== 新增：临界（精确）理论 G0 计算函数 =====================
+def calculate_G0_critical(R0, N):
+    """
+    基于图片公式精确计算理论初始模量 G₀。
+    该公式相比 partial unfolding (Area 2) 公式，
+    完整保留了求导项中的 x₀/2 部分。
+    公式：G₀ = 1.5 * R₀ * [f(x₁) + f'(x₁) * (dx₁/dλ + x₀/2)]
+    其中 x₀ = R₀ / (N * ξ_f)
+    """
+    
+    # 1. 定义 MS 力-伸长关系函数和其导数
+    def f(x):
+        if x >= 0.9999: return 1e10 
+        return 0.25 * ((1 - x)**(-2) - 1 + 4*x)
+    
+    def f_prime(x):
+        if x >= 0.9999: return 1e10
+        return 0.5 * (1 - x)**(-3) + 1
+
+    # 2. 求解临界点 xc，使得 f(xc) = k2
+    xc = brentq(lambda x: f(x) - k2, 0.1, 0.9)  
+    f_prime_xc = f_prime(xc)
+    
+    # 3. 计算图片中的参数 A 和 B
+    A = (alpha - 1) / 2 * k1 * f_prime_xc
+    B = (alpha + 1) / 2 - A * xc
+    
+    # 4. 确定 x0
+    x0 = R0 / (N * xi_f)
+    if x0 <= 0: return 0
+    
+    # 5. 解一元二次方程 A * x1^2 + B * x1 - x0 = 0 得到 x1
+    D = np.sqrt(max(0, B**2 + 4 * A * x0))
+    x1 = (-B + D) / (2 * A)
+    
+    # 6. 计算 x(λ) 对 λ 在 λ=1 处的导数 dx1/dλ
+    # 由 x(λ) = (-B + sqrt(B**2 + 4*A*x0*λ))/(2*A) 求导可得
+    dx1 = x0 / D
+    
+    # 7. 【核心修正】代入图片中完整的 G0 公式
+    # (注意：此处比 area2 多出了 x0/2 这一项)
+    G0 = 1.5 * R0 * (f(x1) + f_prime(x1) * (dx1 + x0 / 2))
+    
+    return G0
+
 # ===================== 可视化函数 =====================
 def plot_G0_vs_N_area1(N_vals, kR=0.5, save_dir=None):
     """
@@ -249,7 +299,8 @@ def plot_G0_vs_N_area2(N_vals, kR=2.68, save_dir=None):
     """
     
     # 根据 N_vals 列表计算相应的 R0 列表
-    R0_val = [kR * n**0.5 for n in N_vals]
+    # R0_val = [kR * n**0.5 for n in N_vals]
+    R0_val = [R0ms(n) for n in N_vals]
     G0_val = [initial_modulus_num(r0, n) for r0, n in zip(R0_val, N_vals)]
     
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -261,14 +312,17 @@ def plot_G0_vs_N_area2(N_vals, kR=2.68, save_dir=None):
     
     # 生成连续的 N_theo 作为 x 轴
     N_theo = np.linspace(1.0, 10.5, Rtheo_points)
-    
-    # 2. 理论解析解 (Area 2) - 原图的理论线
-    G0_theo_area2 = [calculate_G0_area2(kR * np.sqrt(N), N) for N in N_theo]
-    ax.plot(N_theo, G0_theo_area2, '-', linewidth=lines_linewidth, label='Partially Unfolded', alpha=0.8, zorder=5)
 
-    # 3. 新增：理论解析解 (Area 1) - 蓝实线
-    G0_theo_area1 = [calculate_G0_area1(kR * np.sqrt(N), N) for N in N_theo]
+    # 2. 新增：理论解析解 (Area 1) - 蓝实线
+    G0_theo_area1 = [calculate_G0_area1(R0ms(n), n) for n in N_theo]
     ax.plot(N_theo, G0_theo_area1, '--', color='blue', linewidth=lines_linewidth, label='Fully Folded', alpha=0.8, zorder=5)
+    
+    # 3. 理论解析解 (Area 2) - 原图的理论线
+    G0_theo_area2 = [calculate_G0_area2(R0ms(n), n) for n in N_theo]
+    ax.plot(N_theo, G0_theo_area2, '-', color='orange', linewidth=lines_linewidth, label='Partially Unfolded', alpha=0.8, zorder=5)
+
+    G0_theo_critical = [calculate_G0_critical(R0ms(n), n) for n in N_theo]
+    ax.plot(N_theo, G0_theo_critical, '-', color='red', linewidth=lines_linewidth, label='Critical case', alpha=0.8, zorder=5)
 
     ax.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
     ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)

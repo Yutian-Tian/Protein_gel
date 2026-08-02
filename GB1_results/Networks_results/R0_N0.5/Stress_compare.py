@@ -109,6 +109,12 @@ def MSforce(x):
                      np.inf)
     return force
 
+def R0ms(N):
+    L = N*xi_f
+    Rms = np.sqrt(2*L*(1 - 1/L*(1 - np.exp(-L))))
+
+    return Rms
+
 def x_theory(lam, N):
     """
     新增函数：计算图1中的 x(lambda) 解析解
@@ -145,6 +151,14 @@ def x_theory(lam, N):
     x_lambda_val = (-B + np.sqrt(inside_sqrt)) / (2 * A)
     
     return x_lambda_val
+
+def n_theory(lam, N):
+    # R0 = kR*np.sqrt(N)
+    R0 = R0ms(N)
+    x_theo = x_theory(lam, N)
+    n_theo = lam*R0/((alpha - 1)*x_theo*xi_f) - N/(alpha - 1)
+
+    return n_theo
 
 def PlotStressMS(R0, N=None):
     """
@@ -218,7 +232,8 @@ def create_visualization(save_dir=None):
     ax1.set_yscale('log')
 
     for idx, N in enumerate(N_val):
-        R0 = kR * N**0.5
+        # R0 = kR * N**0.5
+        R0 = R0ms(N)
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
         lambda_sim, sigma_sim = StressOptimization(R0, r_val, f_val)
@@ -285,7 +300,8 @@ def create_visualization(save_dir=None):
 
     fig2, ax2 = plt.subplots(1, 1, figsize=(12, 9))
     for idx, N in enumerate(N_val):
-        R0 = kR * N**0.5
+        # R0 = kR * N**0.5
+        R0 = R0ms(N)
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
         Lc_val = (N - n_val) * xi_f + n_val* alpha * xi_f
@@ -348,14 +364,19 @@ def create_visualization(save_dir=None):
 
     fig3, ax3 = plt.subplots(1, 1, figsize=(12, 9))
     for idx, N in enumerate(N_val):
-        R0 = kR * N**0.5
+        # R0 = kR * N**0.5
+        R0 = R0ms(N)
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
         lam_val = r_val / R0
+        n_theo = n_theory(lam_val, N)
         n_frac = n_val / N
+        n_frac_theo = n_theo / N
         ax3.plot(lam_val, n_frac, 'o', color=colors[idx], markerfacecolor='none',
                 markeredgewidth=2, markersize=8,
                 label=f'N={int(N)}', zorder=4)
+        ax3.plot(r_val/R0, n_frac_theo, '-', color='black', linewidth=2, zorder=5)
+        
 
         # 标签与标题
     ax3.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)

@@ -82,11 +82,11 @@ plt.rcParams.update({
 xi_f = 3.6
 alpha = 7.6
 N_Area1 = 10.0
-N_Area2 = 4.0
+N_Area2 = 8.0
 k1 = 6.5
 k2 = 1.50
 
-R0_val = [1.5, 5.0, 10.0, 15.0, 20.0, 25.0]   # 需要计算的 R₀ 点
+R0_val = np.linspace(1.0, 51.0, 50)  # 需要计算的 R₀ 点
 Rtheo_points = 200                      # 理论曲线采样点数
 
 # ===================== 基础物理函数 =====================
@@ -259,8 +259,8 @@ def plot_G0_vs_R0_area2(R0_val, save_dir=None):
     ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
     ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
-    ax.set_xlim(1.0, float(R0_val[-1]) + 1.0)
-    ax.set_ylim(0.1, 100.0)  
+    ax.set_xlim(1.0, float(R0_val[-1]) + 50.0)
+    ax.set_ylim(0.1, 120.0)  
 
     ax.tick_params(axis='both', which='major', direction=xtick_direction, top=xtick_top, right=ytick_right)
     ax.minorticks_on()

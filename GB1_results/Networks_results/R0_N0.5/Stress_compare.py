@@ -144,7 +144,8 @@ def x_theory(lam, N):
     B = (alpha + 1) / 2 - A * xc
     
     # 根据代码，R0 = kR * N**0.5，得出 x0 = R0 / (N * xi_f)
-    x0 = kR / (np.sqrt(N) * xi_f) 
+    # x0 = kR / (np.sqrt(N) * xi_f) 
+    x0 = R0ms(N) / (N * xi_f) 
     
     # 4. 套用一元二次方程求根公式计算 x(lambda)
     inside_sqrt = B**2 + 4 * A * x0 * lam
@@ -359,7 +360,7 @@ def create_visualization(save_dir=None):
         save_path2 = os.path.join(save_dir, f'k_R={kR}_x_compare.png')
         fig2.savefig(save_path2, dpi=savefig_dpi, bbox_inches='tight',
                      facecolor='white', edgecolor='none')
-        print(f"本构曲线已保存至: {save_path2}")
+        print(f"相对拉伸曲线已保存至: {save_path2}")
 
 
     fig3, ax3 = plt.subplots(1, 1, figsize=(12, 9))
@@ -372,14 +373,14 @@ def create_visualization(save_dir=None):
         n_theo = n_theory(lam_val, N)
         n_frac = n_val / N
         n_frac_theo = n_theo / N
-        ax3.plot(lam_val, n_frac, 'o', color=colors[idx], markerfacecolor='none',
+        ax3.plot(f_val, n_frac, 'o', color=colors[idx], markerfacecolor='none',
                 markeredgewidth=2, markersize=8,
                 label=f'N={int(N)}', zorder=4)
-        ax3.plot(r_val/R0, n_frac_theo, '-', color='black', linewidth=2, zorder=5)
+        # ax3.plot(f_val, n_frac_theo, '-', color='black', linewidth=2, zorder=5)
         
 
         # 标签与标题
-    ax3.set_xlabel('Stretch ratio $\lambda$', fontsize=label_fontsize)
+    ax3.set_xlabel('force $f$', fontsize=label_fontsize)
     ax3.set_ylabel('Unfolding fraction $n/N$', fontsize=label_fontsize)
     ax3.set_title(f'Unfolding fraction vs. strain', 
                   fontsize=title_fontsize, pad=20)
@@ -397,7 +398,7 @@ def create_visualization(save_dir=None):
               fontsize=legend_fontsize, framealpha=0.9,
               edgecolor='none', loc='best')
 
-    ax3.set_xlim(1.0, 20)
+    ax3.set_xlim(1.0, 2.0)
     ax3.set_ylim(-0.1, 1.1)
 
     ax3.tick_params(axis='both', which='major',
@@ -425,7 +426,7 @@ def create_visualization(save_dir=None):
         save_path3 = os.path.join(save_dir, f'k_R={kR}_n_compare.png')
         fig3.savefig(save_path3, dpi=savefig_dpi, bbox_inches='tight',
                      facecolor='white', edgecolor='none')
-        print(f"本构曲线已保存至: {save_path3}") 
+        print(f"展开分数曲线已保存至: {save_path3}") 
 
 
 def main():

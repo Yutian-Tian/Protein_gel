@@ -80,12 +80,12 @@ plt.rcParams.update({
 # ============ 核心物理参数 ============
 xi_f = 3.6
 alpha = 7.6
-k1 = 6.5
-k2 = 1.48
+k1 = 7.5
+k2 = 1.5
 kR = 2.68           # 初始首末端距离 R0 = kR * N**0.5
 
 N_Area2_fixed = 8.0    # 部分解折叠模型中固定使用的 N
-N_vals = np.linspace(1.0, 10.0, 50)  # 数值优化离散点
+N_vals = np.linspace(1.0, 10.0, 10)  # 数值优化离散点
 Rtheo_points = 200
 
 # ===================== 基础物理函数 =====================
@@ -127,7 +127,7 @@ def StressOptimization(R0, N, r_val, f_val):
         sigma[0] = 0.0
     return lambda_, sigma
 
-def initial_modulus_num(R0, N, fit_points=2):
+def initial_modulus_num(R0, N, fit_points=5):
     """数值计算初始模量 G₀"""
     x_MS = np.linspace(0.01, 0.99, 3000)
     f_MS = MSforce(x_MS)
@@ -245,6 +245,46 @@ def calculate_G0_critical(R0, N):
     
     return G0
 
+# ===================== 针对部分打开初态：使用渐近，理论 G0 计算函数 =====================
+def calculate_InitModulus_area2(R0, N):
+    """
+    基于 Area 2 (部分解折叠) 的理论近似解析解求初始模量 G0
+    严格依据图片中 r(f) = a + bΔf + c(Δf)^2 的近似推导确定 a、b、c
+    """
+    
+    # 1. 计算 L_c(f) 近似展开系数
+    # L_c(f) ≈ L0 + L1 * Δf
+    L0 = N * xi_f * (alpha + 1) / 2
+    L1 = N * xi_f * (alpha - 1) / 2 * k1
+    
+    # 2. 计算 x_MS(f) 近似展开系数
+    # x_MS(f) ≈ X0 + X1 * Δf
+    # (k_B T = 1, l_p = 1)
+    X0 = 1 - 1 / np.sqrt(k2)
+    X1 = 1 / (2 * k2**1.5)
+    
+    # 3. 确定二次多项式 r(f) = a + b*Δf + c*(Δf)^2 中的系数
+    a = X0 * L0
+    b = X1 * L0 + X0 * L1
+    c = X1 * L1
+    
+    # 4. 计算 f(R0) 和 f'(R0) (逆函数求解)
+    # 防止数值误差导致 delta < 0，使用 max(0, ...) 过滤
+    discriminant = max(0, b**2 - 4 * c * (a - R0))
+    sqrt_disc = np.sqrt(discriminant)
+    
+    # 避免分母为 0 的极端情况
+    if sqrt_disc < 1e-12:
+        return 0.0
+        
+    f_R0 = k2 + (-b + sqrt_disc) / (2 * c)
+    f_prime_R0 = 1 / sqrt_disc
+    
+    # 5. 计算 G0 (取 rho*kB_T/l_p = 1)
+    G0 = R0 * (R0 / 2 * f_prime_R0 + 1.5 * f_R0)
+    
+    return G0
+
 # ===================== 可视化函数 =====================
 def plot_G0_vs_N_area1(N_vals, kR=0.5, save_dir=None):
     """
@@ -291,7 +331,6 @@ def plot_G0_vs_N_area1(N_vals, kR=0.5, save_dir=None):
         print(f"Area1 曲线已保存至: {path}")
 
 # ===================== 修改后的绘图函数 =====================
-# ===================== 修改后的绘图函数 =====================
 def plot_G0_vs_N_area2(N_vals, kR=2.68, save_dir=None):
     """
     绘制第二种情况 (部分解折叠) G₀ 随 N 变化
@@ -315,24 +354,25 @@ def plot_G0_vs_N_area2(N_vals, kR=2.68, save_dir=None):
 
     # 2. 新增：理论解析解 (Area 1) - 蓝实线
     G0_theo_area1 = [calculate_G0_area1(R0ms(n), n) for n in N_theo]
-    ax.plot(N_theo, G0_theo_area1, '--', color='blue', linewidth=lines_linewidth, label='Fully Folded', alpha=0.8, zorder=5)
+    ax.plot(N_theo, G0_theo_area1, '-', color='blue', linewidth=lines_linewidth, label='Fully Folded', alpha=0.8, zorder=5)
     
     # 3. 理论解析解 (Area 2) - 原图的理论线
     G0_theo_area2 = [calculate_G0_area2(R0ms(n), n) for n in N_theo]
     ax.plot(N_theo, G0_theo_area2, '-', color='orange', linewidth=lines_linewidth, label='Partially Unfolded', alpha=0.8, zorder=5)
 
-    G0_theo_critical = [calculate_G0_critical(R0ms(n), n) for n in N_theo]
-    ax.plot(N_theo, G0_theo_critical, '-', color='red', linewidth=lines_linewidth, label='Critical case', alpha=0.8, zorder=5)
+    # G0_theo_critical = [calculate_G0_critical(R0ms(n), n) for n in N_theo]
+    # ax.plot(N_theo, G0_theo_critical, '-', color='red', linewidth=lines_linewidth, label='Critical case', alpha=0.8, zorder=5)
+
+    # G0_theo_Initial = [calculate_InitModulus_area2(R0ms(n), n) for n in N_theo]
+    # ax.plot(N_theo, G0_theo_Initial, '-', color='green', linewidth=lines_linewidth, label='Initial Modulus', alpha=0.8, zorder=5)
 
     ax.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
     ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
-    ax.set_title(f'Initial modulus $G_0$ vs. $N$ ($R_0 = {kR} \\sqrt{{N}}$)', fontsize=title_fontsize, pad=20)
+    ax.set_title(f'Initial modulus $G_0$ vs. $N$', fontsize=title_fontsize, pad=20)
     ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
     ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
     ax.set_xlim(1.0, 10.5)
-    # Area2 的理论值通常比 Area1 大很多，强制 ylim(0.0, 1.0) 会导致高值被切断
-    # 这里建议不加 ylim，或者您可以根据数据动态设置 ylim
     ax.set_ylim(0.0, 20.0) 
     
     ax.tick_params(axis='both', which='major', direction=xtick_direction, top=xtick_top, right=ytick_right)

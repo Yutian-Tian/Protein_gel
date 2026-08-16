@@ -241,17 +241,18 @@ def plot_G0_vs_R0_area2(R0_val, save_dir=None):
             R0_theo_filtered.append(r0)
             G0_theo_area1_compare.append(calculate_G0_area1(r0, N_Area2))
     
-    ax.plot(R0_theo_filtered, G0_theo_area1_compare, '--b', linewidth=lines_linewidth, 
+    ax.plot(R0_theo_filtered, G0_theo_area1_compare, '-b', linewidth=lines_linewidth, 
             label='Fully Folded', alpha=0.8, zorder=5)
     # --------------------------------------------------------------------------------------
 
-    # 标度参考线 G0 ∝ R0²，改为与右端点对齐
-    #start_R0 = float(R0_theo[0])
-    #end_R0 = float(R0_theo[-1])
-    #end_G0 = float(G0_theo[-1])
-    #ref_x = [start_R0, end_R0]
-    #ref_y = [end_G0 * (start_R0 / end_R0)**2, end_G0]
-    #ax.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto R_0^2$', zorder=3)
+    # 标度参考线 G0 ∝ R0²，与蓝线左端点对齐
+    start_R0 = float(R0_theo_filtered[0])
+    #end_R0 = float(R0_theo_filtered[-1])
+    end_R0 = 10.0
+    start_G0 = float(G0_theo_area1_compare[0])
+    ref_x = [start_R0, end_R0]
+    ref_y = [start_G0, start_G0 * (end_R0 / start_R0)**2]
+    ax.plot(ref_x, ref_y, '--', color='black', linewidth=2.5, label=r'$G_0 \propto R_0^2$', zorder=3)
 
     ax.set_xlabel('Initial end-to-end distance $R_0$', fontsize=label_fontsize)
     ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)

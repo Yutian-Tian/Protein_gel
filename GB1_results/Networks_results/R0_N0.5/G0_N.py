@@ -6,6 +6,7 @@ R0与N存在关系 R0 = kR * N**0.5
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
+import matplotlib.ticker as ticker
 import os
 from scipy.optimize import brentq
 
@@ -85,8 +86,8 @@ k2 = 1.5
 kR = 2.68           # 初始首末端距离 R0 = kR * N**0.5
 
 N_Area2_fixed = 8.0    # 部分解折叠模型中固定使用的 N
-N_vals = np.linspace(1.0, 10.0, 10)  # 数值优化离散点
-Rtheo_points = 200
+N_vals = np.linspace(1.0, 100.0, 50)  # 数值优化离散点
+Rtheo_points = 500
 
 # ===================== 基础物理函数 =====================
 def Lc(f, N):
@@ -150,7 +151,7 @@ def calculate_G0_area1(R0, N):
     L_c = N * xi_f
     x0 = R0 / L_c
     if x0 >= 1: 
-        return 0
+        return np.inf
     
     term1 = x0 / (2 * (1 - x0)**3)
     term2 = 1 / (4 * (1 - x0)**2)
@@ -286,41 +287,77 @@ def calculate_InitModulus_area2(R0, N):
     return G0
 
 # ===================== 可视化函数 =====================
-def plot_G0_vs_N_area1(N_vals, kR=0.5, save_dir=None):
+def plot_G0_vs_N_area1(N_vals, kR, save_dir=None):
     """
     绘制第一种情况 (完全折叠) G₀ 随 N 变化
     由于 R0 与 N 存在绑定关系（R0=kR*sqrt(N)），横轴改为 N
     """
+    # ---------- 【新增】计算渐近展开的常数项 C ----------
+    # 根据您提供的公式：C = 9 * kR^2 / (2*xi_f)
+    const_term = 9 * kR**2 / (2*xi_f)
+    # ----------------------------------------------------
     
     # 根据 N_vals 列表计算相应的 R0 列表
     R0_val = [kR * n**0.5 for n in N_vals]
     G0_val = [initial_modulus_num(r0, n) for r0, n in zip(R0_val, N_vals)]
     
+    # ---------- 【新增】减去常数项 ----------
+    G0_val_shifted = [g - const_term for g in G0_val]
+    # -------------------------------------
+
     fig, ax = plt.subplots(figsize=(10, 8))
-    ax.set_xscale('linear')
-    ax.set_yscale('linear')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     
-    # 数值优化解
-    ax.plot(N_vals, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
+    # 数值优化解（使用平移后的数据）
+    ax.plot(N_vals, G0_val_shifted, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
     
     # 理论解析解
-    # 【核心修正】因为横坐标是 N，我们需要生成连续的 N_theo 作为 x 轴
-    # 并通过 R0 = kR * sqrt(N) 求出对应的 R0 传入理论公式
-    N_theo = np.linspace(0.5, 10.5, Rtheo_points)
+    N_theo = np.linspace(0.5, N_vals[-1], Rtheo_points)
     G0_theo = [calculate_G0_area1(kR * np.sqrt(N), N) for N in N_theo]
+    # ---------- 【新增】理论解也减去常数项 ----------
+    G0_theo_shifted = [g - const_term for g in G0_theo]
+    # ---------------------------------------------
     
-    ax.plot(N_theo, G0_theo, '-', linewidth=lines_linewidth, label='Theoretical', alpha=0.8, zorder=5)
+    ax.plot(N_theo, G0_theo_shifted, '-', color='blue', linewidth=lines_linewidth, label='Theoretical', alpha=0.8, zorder=5)
 
+    # ---------- 【新增】参考线 N^(-0.5)，与实验数据右端对齐 ----------
+    # 取右端点（N最大处）的平移后实验数据值
+    N_end = N_vals[-1]
+    G_end = G0_val_shifted[-1]
+    # 计算参考线的比例系数 m，使得 m * N_end^(-0.5) = G_end
+    m = G_end * (N_end ** 0.5)
+    # 生成参考线横坐标（覆盖实验数据范围）
+    N_ref = np.linspace(N_vals[0], N_vals[-1], 50)
+    G_ref = m * (N_ref ** (-0.5))
+    ax.plot(N_ref, G_ref, '--', color='black', linewidth=2.5, label=r'$G_0 - G_{00} \propto N^{-1/2}$', zorder=3)
+    # -----------------------------------------------------------------
+
+    # 更新 Y 轴标签，明确显示已移除常数项
     ax.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
-    ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
-    ax.set_title(f'Initial modulus $G_0$ vs. $N$ ($R_0 = {kR} \\sqrt{{N}}$)', fontsize=title_fontsize, pad=20)
+    ax.set_ylabel('Initial modulus $G_0 - G_{00}$', fontsize=label_fontsize)
+    ax.set_title(f'Shifted Initial modulus vs. $N$ ($R_0 = {kR} \\sqrt{{N}}$)', fontsize=title_fontsize, pad=20)
     ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
     ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
-    ax.set_xlim(0.5, 10.5)
-    ax.set_ylim(0.0, 1.0)
-    ax.tick_params(axis='both', which='major', direction=xtick_direction, top=xtick_top, right=ytick_right)
-    ax.minorticks_on()
+    ax.set_xlim(1.0, N_vals[-1])
+    ax.set_ylim(0.0, 100.0)
+    # ---------------------------------------------
+    
+    ax.xaxis.set_major_locator(ticker.LogLocator(base=10.0, numticks=12)) # 强制显示主要刻度
+    ax.xaxis.set_major_formatter(ticker.ScalarFormatter()) # 显示 1, 2, 3, ..., 10
+    ax.xaxis.set_minor_formatter(ticker.NullFormatter())   # 隐藏次刻度的数字
+    
+    # ---------- 【修改】显式设置横轴主/次刻度长度 ----------
+    ax.minorticks_on()  # 开启次刻度
+    # 主刻度长度设为 6，次刻度长度设为 3（恰好为主刻度一半）
+    ax.tick_params(axis='x', which='major', length=6, direction=xtick_direction, top=xtick_top)
+    ax.tick_params(axis='x', which='minor', length=4, width=xtick_major_width, direction=xtick_direction, top=xtick_top)
+    # 同时保留 y 轴原有的主刻度设置（不改变其长度）
+    ax.tick_params(axis='y', which='major', width=ytick_major_width, direction=xtick_direction, right=ytick_right)
+    ax.tick_params(axis='y', which='minor', length=4, width=ytick_major_width, direction=xtick_direction, top=xtick_top)
+    # ----------------------------------------------------
+
     for spine in ax.spines.values(): spine.set_linewidth(axes_linewidth)
     plt.tight_layout()
     
@@ -331,33 +368,35 @@ def plot_G0_vs_N_area1(N_vals, kR=0.5, save_dir=None):
         print(f"Area1 曲线已保存至: {path}")
 
 # ===================== 修改后的绘图函数 =====================
-def plot_G0_vs_N_area2(N_vals, kR=2.68, save_dir=None):
+def plot_G0_vs_N_area2(N_vals, kR, save_dir=None):
     """
     绘制第二种情况 (部分解折叠) G₀ 随 N 变化
     横轴改为 N，与 plot_G0_vs_N_area1 保持一致，并将 Area 1 理论解以蓝实线绘制在同一张图上
     """
     
     # 根据 N_vals 列表计算相应的 R0 列表
-    # R0_val = [kR * n**0.5 for n in N_vals]
-    R0_val = [R0ms(n) for n in N_vals]
+    R0_val = [kR * n**0.5 for n in N_vals]
+    # R0_val = [R0ms(n) for n in N_vals]
     G0_val = [initial_modulus_num(r0, n) for r0, n in zip(R0_val, N_vals)]
     
     fig, ax = plt.subplots(figsize=(10, 8))
-    ax.set_xscale('linear')
-    ax.set_yscale('linear')
+    ax.set_xscale('log')
+    ax.set_yscale('log')
     
     # 1. 数值优化解 (Area 2)
     ax.plot(N_vals, G0_val, 'o', markerfacecolor='none', label='Optimization', markeredgewidth=2, markersize=15, zorder=4)
     
     # 生成连续的 N_theo 作为 x 轴
-    N_theo = np.linspace(1.0, 10.5, Rtheo_points)
+    N_theo = np.linspace(1.0, N_vals[-1], Rtheo_points)
 
     # 2. 新增：理论解析解 (Area 1) - 蓝实线
-    G0_theo_area1 = [calculate_G0_area1(R0ms(n), n) for n in N_theo]
+    #G0_theo_area1 = [calculate_G0_area1(R0ms(n), n) for n in N_theo]
+    G0_theo_area1 = [calculate_G0_area1(kR * n**0.5, n) for n in N_theo]
     ax.plot(N_theo, G0_theo_area1, '-', color='blue', linewidth=lines_linewidth, label='Fully Folded', alpha=0.8, zorder=5)
     
     # 3. 理论解析解 (Area 2) - 原图的理论线
-    G0_theo_area2 = [calculate_G0_area2(R0ms(n), n) for n in N_theo]
+    #G0_theo_area2 = [calculate_G0_area2(R0ms(n), n) for n in N_theo]
+    G0_theo_area2 = [calculate_G0_area2(kR * n**0.5, n) for n in N_theo]
     ax.plot(N_theo, G0_theo_area2, '-', color='orange', linewidth=lines_linewidth, label='Partially Unfolded', alpha=0.8, zorder=5)
 
     # G0_theo_critical = [calculate_G0_critical(R0ms(n), n) for n in N_theo]
@@ -366,17 +405,29 @@ def plot_G0_vs_N_area2(N_vals, kR=2.68, save_dir=None):
     # G0_theo_Initial = [calculate_InitModulus_area2(R0ms(n), n) for n in N_theo]
     # ax.plot(N_theo, G0_theo_Initial, '-', color='green', linewidth=lines_linewidth, label='Initial Modulus', alpha=0.8, zorder=5)
 
+
     ax.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
     ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)
     ax.set_title(f'Initial modulus $G_0$ vs. $N$', fontsize=title_fontsize, pad=20)
     ax.grid(True, alpha=grid_alpha, linestyle=':', linewidth=grid_linewidth)
     ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
     
-    ax.set_xlim(1.0, 10.5)
-    ax.set_ylim(0.0, 20.0) 
+    ax.set_xlim(1.0, N_vals[-1])
+    ax.set_ylim(1.0, 100.0) 
     
-    ax.tick_params(axis='both', which='major', direction=xtick_direction, top=xtick_top, right=ytick_right)
-    ax.minorticks_on()
+    ax.xaxis.set_major_locator(ticker.LogLocator(base=10.0, numticks=12)) # 强制显示主要刻度
+    ax.xaxis.set_major_formatter(ticker.ScalarFormatter()) # 显示 1, 2, 3, ..., 10
+    ax.xaxis.set_minor_formatter(ticker.NullFormatter())   # 隐藏次刻度的数字
+        
+    # ---------- 【修改】显式设置横轴主/次刻度长度 ----------
+    ax.minorticks_on()  # 开启次刻度
+    # 主刻度长度设为 6，次刻度长度设为 3（恰好为主刻度一半）
+    ax.tick_params(axis='x', which='major', length=6, direction=xtick_direction, top=xtick_top)
+    ax.tick_params(axis='x', which='minor', length=4, width=xtick_major_width, direction=xtick_direction, top=xtick_top)
+    # 同时保留 y 轴原有的主刻度设置（不改变其长度）
+    ax.tick_params(axis='y', which='major', width=ytick_major_width, direction=xtick_direction, right=ytick_right)
+    ax.tick_params(axis='y', which='minor', length=4, width=ytick_major_width, direction=xtick_direction, top=xtick_top)
+
     for spine in ax.spines.values(): spine.set_linewidth(axes_linewidth)
     plt.tight_layout()
     
@@ -391,8 +442,8 @@ def main():
     output_dir = '/home/tyt/project/protein_gel/GB1_results/Networks_results/R0_N0.5'
     
     # 绘制基于 R0 = kR*sqrt(N) 的标度律对比 (以 N 为横坐标)
-    plot_G0_vs_N_area1(N_vals, save_dir=output_dir)
-    plot_G0_vs_N_area2(N_vals, save_dir=output_dir)
+    plot_G0_vs_N_area1(N_vals, kR, save_dir=output_dir)
+    plot_G0_vs_N_area2(N_vals, kR, save_dir=output_dir)
 
 if __name__ == "__main__":
     main()

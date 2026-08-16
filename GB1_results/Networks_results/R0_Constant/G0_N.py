@@ -284,14 +284,14 @@ def plot_G0_vs_N_area2(N_val, save_dir=None):
             N_theo_filtered.append(n)
             G0_theo_area1_compare.append(calculate_G0_area1(R0, n))
     
-    ax.plot(N_theo_filtered, G0_theo_area1_compare, '--b', linewidth=lines_linewidth, 
+    ax.plot(N_theo_filtered, G0_theo_area1_compare, '-b', linewidth=lines_linewidth, 
             label='Fully Folded', alpha=0.8, zorder=5)
     # ----------------------------------------------------------------------------
 
     # 参考线 y ∝ N^(-1)，与右端点对齐
-    # ref_x = [N_theo[0], N_theo[-1]]
-    # ref_y = [G0_theo[-1] * (N_theo[-1] / N_theo[0]), G0_theo[-1]]
-    # ax.plot(ref_x, ref_y, '--', color='#666666', linewidth=2.5, label=r'$G_0 \propto N^{-1}$', zorder=3)
+    ref_x = [N_theo_filtered[0], N_theo_filtered[-1]]
+    ref_y = [G0_theo_area1_compare[-1] * (N_theo_filtered[-1] / N_theo_filtered[0]), G0_theo_area1_compare[-1]]
+    ax.plot(ref_x, ref_y, '--', color='black', linewidth=2.5, label=r'$G_0 \propto N^{-1}$', zorder=3)
 
     ax.set_xlabel('Number of domains $N$', fontsize=label_fontsize)
     ax.set_ylabel('Initial modulus $G_0$', fontsize=label_fontsize)

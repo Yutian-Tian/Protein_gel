@@ -92,9 +92,9 @@ N_val = [1.0, 2.0, 4.0, 6.0, 8.0, 10.0]   # domain 的数量
 M = 300
 k1 = 6.5
 k2 = 1.48
-kR = 2.68           # 初始首末端距离 R0 = kR * N**0.5
+kR = 5.0           # 初始首末端距离 R0 = kR * N**0.5
 lambda_max = 30.0  # 最大伸长比
-Stress_max = 40.0  # 最大应力值
+Stress_max = 100.0  # 最大应力值
 
 def Lc(f, N):
     """
@@ -233,8 +233,8 @@ def create_visualization(save_dir=None):
     ax1.set_yscale('log')
 
     for idx, N in enumerate(N_val):
-        # R0 = kR * N**0.5
-        R0 = R0ms(N)
+        R0 = kR * N**0.5
+        # R0 = R0ms(N)
         filepath = f"/home/tyt/project/protein_gel/GB1_results/Multi_chains/N_{int(N)}_M_{M}_test_results/average_curves.csv"
         f_val, r_val, n_val = load_average_curve_data(filepath)
         lambda_sim, sigma_sim = StressOptimization(R0, r_val, f_val)

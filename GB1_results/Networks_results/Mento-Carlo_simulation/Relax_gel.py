@@ -202,6 +202,7 @@ def G0_3chain_components(N, x_grid):
     
     with np.errstate(divide='ignore', invalid='ignore'):
         log_p = 2 * np.log(np.clip(r, 1e-300, None)) - Fc
+        # log_p = - Fc
         log_p -= np.max(log_p)
         p_un = np.exp(log_p)
         p_un = np.nan_to_num(p_un, nan=0.0, posinf=0.0, neginf=0.0)
@@ -299,7 +300,7 @@ def plot_distribution_r(N, save_dir=None):
     ax2.set_ylabel(r'$C(r | N)$', fontsize=label_fontsize, color='red')
     ax2.tick_params(axis='y', labelcolor='red')
 
-    ax.axvline(x=1.95, color='purple', linestyle='--', linewidth=3, label='$r=1.95$')
+    ax.axvline(x=1.95*5, color='purple', linestyle='--', linewidth=3, label='$r=9.75$')
     
     # 标题
     ax.set_title(f'Distribution of $r$ ($N = {N}$)', fontsize=title_fontsize, pad=20)
@@ -319,7 +320,7 @@ def plot_distribution_r(N, save_dir=None):
     
     # 限制显示范围，聚焦主要区域
     p_max_idx = np.argmax(p)
-    r_max = 10.0  # 根据物理意义设置 r 的最大值
+    r_max = 20.0  # 根据物理意义设置 r 的最大值
     ax.set_xlim(0, r_max)
     ax.set_ylim(bottom=0)
     ax2.set_ylim(-0.05, 1.05)  # CDF从0到1
@@ -345,7 +346,7 @@ def main():
     plot_G0_3chain(N_vals, save_dir=output_dir)
 
     # 可视化分布函数 p(r; N) 对于单个 N 值
-    N_single = 1
+    N_single = 5
     plot_distribution_r(N_single, save_dir=output_dir)
 
 if __name__ == "__main__":

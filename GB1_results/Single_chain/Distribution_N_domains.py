@@ -157,9 +157,9 @@ def calc_mc_chain_Feff(N, M_samples, r_grid, F_eff_r):
 
 # ===================== 可视化对比 =====================
 def plot_N_comparison(output_dir):
-    N_list = [5, 20, 50]  # 需要对比的链长
-    M_samples = 200000    # 蒙特卡洛采样次数
-    colors = ['blue', 'red', 'green']
+    N_list = [1, 2, 4, 6, 8, 10]  # 需要对比的链长
+    M_samples = 1000000    # 蒙特卡洛采样次数
+    colors = ['blue', 'red', 'green', 'orange', 'purple', 'brown']
     
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
     
@@ -195,15 +195,15 @@ def plot_N_comparison(output_dir):
         
         # 绘制曲线
         ax2.plot(R_phe_chain, F_phe_chain_aligned, '--', color=colors[i], 
-                 label=f'Phenom. $N={N}$', linewidth=2.5, alpha=0.8)
+                 label=f'Gibbs. $N={N}$', linewidth=2.5, alpha=0.8)
         ax2.plot(R_mc_chain, F_mc_chain_aligned, '-', color=colors[i], 
-                 label=f'MC Strict $N={N}$', linewidth=3)
+                 label=f'Strict.(MC) $N={N}$', linewidth=3)
         
     ax2.set_xlabel('Chain End-to-end Length $R$', fontsize=label_fontsize)
     ax2.set_ylabel('$\\Delta F_{\\text{chain}}(R)$', fontsize=label_fontsize)
     ax2.set_title('Free Energy Landscape vs $N$', fontsize=title_fontsize, pad=20)
-    ax2.set_xlim(0, max(N_list) * r_max_single)
-    ax2.set_ylim(0, 50)
+    ax2.set_xlim(0, 30)
+    ax2.set_ylim(0, 10)
     ax2.grid(True, ls="--", alpha=grid_alpha)
     ax2.legend(fontsize=16, framealpha=0.9, edgecolor='none')
     

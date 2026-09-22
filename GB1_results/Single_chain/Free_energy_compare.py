@@ -178,7 +178,7 @@ def calc_method4_adiabatic(r_grid):
             continue
             
         n_min = (r / xi_f - 1) / (mu - 1)
-        n_min = max(0.0, n_min + 1e-4)
+        n_min = max(0.0, n_min)
         
         res = minimize_scalar(lambda n: F_d(r, n), bounds=(n_min, 1.0), method='bounded')
         F_min = res.fun

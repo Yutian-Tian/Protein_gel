@@ -95,7 +95,7 @@ def F_WLC(r, n):
     Lc = Lc_of_n(n)
     x = r / Lc
     x_clipped = np.clip(x, 0, 0.9999)
-    res = (Lc / 4) * phi(x_clipped)
+    res = Lc * phi(x_clipped)
     return np.where(x >= 0.9999, 1e10, res)
 
 def U_n(n, Delta_E):
@@ -103,6 +103,74 @@ def U_n(n, Delta_E):
 
 def F_d(r, n, Delta_E):
     return F_WLC(r, n) + U_n(n, Delta_E)
+
+def _global_min_in_interval(r, Delta_E, a, b, n_scan=200):
+    """
+    在区间 [a, b] 内寻找 F_d(r, n, Delta_E) 的全局最小值。
+    先粗网格扫描，再在最小值附近局部细化。
+    """
+    if b <= a:
+        return None
+
+    n_grid = np.linspace(a, b, n_scan)
+    F_grid = F_d(r, n_grid, Delta_E)
+
+    if not np.any(np.isfinite(F_grid)):
+        return None
+
+    idx = int(np.nanargmin(F_grid))
+    F_best = F_grid[idx]
+    n_best = n_grid[idx]
+
+    # 在粗扫描最小值附近做局部有界优化
+    left = n_grid[max(0, idx - 1)]
+    right = n_grid[min(n_scan - 1, idx + 1)]
+
+    if right > left:
+        res = minimize_scalar(
+            lambda n: F_d(r, n, Delta_E),
+            bounds=(left, right),
+            method='bounded'
+        )
+        if res.success and np.isfinite(res.fun) and res.fun < F_best:
+            F_best = res.fun
+            n_best = res.x
+
+    return F_best, n_best
+
+
+def find_global_min_F_d(r, Delta_E, n_min=None):
+    """
+    在物理可行区间 [n_min, 1.0] 内寻找 F_d(r, n, Delta_E) 的全局最小值。
+    利用折叠态 [n_min, 0.5] 和去折叠态 [max(n_min,0.5), 1.0] 双分支搜索。
+    返回: (F_min, n_best)
+    """
+    if n_min is None:
+        n_min = max(0.0, (r / xi_f - 1) / (mu - 1))
+
+    if n_min >= 1.0:
+        return 1e10, 1.0
+
+    candidates = []
+
+    # 折叠态分支
+    if n_min < 0.5:
+        cand = _global_min_in_interval(r, Delta_E, n_min, 0.5)
+        if cand is not None:
+            candidates.append(cand)
+
+    # 去折叠态分支
+    lower_high = max(n_min, 0.5)
+    if lower_high < 1.0:
+        cand = _global_min_in_interval(r, Delta_E, lower_high, 1.0)
+        if cand is not None:
+            candidates.append(cand)
+
+    if not candidates:
+        return 1e10, 1.0
+
+    F_min, n_best = min(candidates, key=lambda x: x[0])
+    return F_min, n_best
 
 # ===================== 四种计算 F_eff(r) 的方法（引入 Delta_E 参数） =====================
 def calc_method1():
@@ -162,19 +230,23 @@ def calc_method3_continuous(r_grid, Delta_E):
     return F_eff3 - F_eff3[0], n_star_vals
 
 def calc_method4_adiabatic(r_grid, Delta_E):
-    """方法四：绝热/零点近似"""
+    """方法四：绝热/零点近似，使用全局最小搜索"""
     F_eff4 = np.zeros_like(r_grid)
+
     for i, r in enumerate(r_grid):
         if r >= xi_f * mu * 0.999:
             F_eff4[i] = 1e10
             continue
+
         n_min = max(0.0, (r / xi_f - 1) / (mu - 1) + 1e-4)
-        res = minimize_scalar(lambda n: F_d(r, n, Delta_E), bounds=(n_min, 1.0), method='bounded')
-        F_min = res.fun
+        F_min, n_best = find_global_min_F_d(r, Delta_E, n_min=n_min)
+
         if F_min > 1e9 or not np.isfinite(F_min):
             F_eff4[i] = 1e10
             continue
+
         F_eff4[i] = F_min
+
     return F_eff4 + Delta_E
 
 # ===================== 可视化函数（引入蒙特卡洛平均） =====================

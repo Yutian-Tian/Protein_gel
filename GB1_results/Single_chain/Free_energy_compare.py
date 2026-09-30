@@ -90,12 +90,10 @@ def Lc_of_n(n):
     return xi_f * (1 + (mu - 1) * n)
 
 def F_WLC(r, n):
-    """支持标量和数组的向量化函数"""
     Lc = Lc_of_n(n)
     x = r / Lc
     x_clipped = np.clip(x, 0, 0.9999)
-    res = (Lc / 4) * phi(x_clipped)
-    # 如果 x >= 0.9999，返回巨大能量 1e10
+    res = Lc * phi(x_clipped)
     return np.where(x >= 0.9999, 1e10, res)
 
 def U_n(n):
@@ -104,9 +102,46 @@ def U_n(n):
 def F_d(r, n):
     return F_WLC(r, n) + U_n(n)
 
-# ===================== 四种计算 F_eff(r) 的方法 =====================
+# ===================== 新增：计算双分支自由能 =====================
+def calc_branches(r):
+    """
+    计算给定 r 下的折叠态分支和去折叠态分支的自由能及其对应的 n。
+    返回: (F_f, n_f, F_u, n_u)
+    如果某个分支不存在（例如超出物理可行域），返回 np.nan
+    """
+    n_min = max(0.0, (r / xi_f - 1) / (mu - 1))
+    if n_min >= 1.0:
+        return np.nan, np.nan, np.nan, np.nan  # 超出完全拉伸极限
+
+    F_f, n_f = np.nan, np.nan
+    F_u, n_u = np.nan, np.nan
+
+    # 折叠态分支 (n 在 n_min 到 0.5 之间)
+    if n_min < 0.5:
+        res_f = minimize_scalar(lambda n: F_d(r, n), bounds=(n_min, 0.5), method='bounded')
+        if res_f.success and np.isfinite(res_f.fun):
+            F_f, n_f = res_f.fun, res_f.x
+
+    # 去折叠态分支 (n 在 max(n_min, 0.5) 到 1.0 之间)
+    lower_high = max(n_min, 0.5)
+    if lower_high < 1.0:
+        res_u = minimize_scalar(lambda n: F_d(r, n), bounds=(lower_high, 1.0), method='bounded')
+        if res_u.success and np.isfinite(res_u.fun):
+            F_u, n_u = res_u.fun, res_u.x
+
+    return F_f, n_f, F_u, n_u
+
+def calc_delta_F(r_grid):
+    """计算 ΔF_{u-f}(r) = F_u(r) - F_f(r)"""
+    delta_F = np.full_like(r_grid, np.nan, dtype=float)
+    for i, r in enumerate(r_grid):
+        F_f, _, F_u, _ = calc_branches(r)
+        if np.isfinite(F_f) and np.isfinite(F_u):
+            delta_F[i] = F_u - F_f
+    return delta_F
+
+# ===================== 原有方法（保持不变） =====================
 def calc_method1():
-    """方法一：唯象力学积分"""
     x_vals = np.linspace(0, 0.999, 1000)
     f_vals = fc(x_vals)
     n_vals = 0.5 * (1 + np.tanh(k1 * (f_vals - k2)))
@@ -115,119 +150,75 @@ def calc_method1():
     return r_vals, F_eff1
 
 def calc_method2(r_grid):
-    """方法二：二态离散求和"""
     F_eff2 = np.zeros_like(r_grid)
     for i, r in enumerate(r_grid):
         if r >= xi_f * mu * 0.99:
             F_eff2[i] = 1e10
             continue
-
         F_folded = F_d(r, 0.0)
         F_unfolded = F_d(r, 1.0)
         F_min = min(F_folded, F_unfolded)
-
         if F_min > 1e9 or not np.isfinite(F_min):
             F_eff2[i] = 1e10
             continue
-
         Z_sum = np.exp(-(F_folded - F_min)) + np.exp(-(F_unfolded - F_min))
         Z_sum = max(Z_sum, 1e-300)
         F_eff2[i] = F_min - np.log(Z_sum)
-
     return F_eff2 + Delta_E
 
 def calc_method3_continuous(r_grid):
-    """方法三：严格连续积分（对 n 从 0 到 1 连续积分）"""
     F_eff3 = np.zeros_like(r_grid)
     for i, r in enumerate(r_grid):
         if r >= xi_f * mu * 0.999:
             F_eff3[i] = 1e10
             continue
-
-        # 物理可行域：要求 Lc(n) >= r
-        n_min = (r / xi_f - 1) / (mu - 1)
-        n_min = max(0.0, n_min)
-
-        # 寻找最小值以稳定积分（限制在 n_min 到 1 之间）
+        n_min = max(0.0, (r / xi_f - 1) / (mu - 1))
         res = minimize_scalar(lambda n: F_d(r, n), bounds=(n_min, 1.0), method='bounded')
         F_min = res.fun
-
         if F_min > 1e9 or not np.isfinite(F_min):
             F_eff3[i] = 1e10
             continue
-
-        # 连续积分（n 取 0 到 1 的连续值）
-        # 使用向量化函数一次计算出所有 n 对应的 F_d
         n_vals = np.linspace(0, 1, 1000)
         F_d_vals = F_d(r, n_vals)
-
         integrand = np.exp(-(F_d_vals - F_min))
         integral = simpson(integrand, x=n_vals)
-
         integral = max(integral, 1e-300)
         F_eff3[i] = F_min - np.log(integral)
-
     return F_eff3 - F_eff3[0]
 
 def calc_method4_adiabatic(r_grid):
-    """方法四：绝热/零点近似"""
     F_eff4 = np.zeros_like(r_grid)
     for i, r in enumerate(r_grid):
         if r >= xi_f * mu * 0.999:
             F_eff4[i] = 1e10
             continue
-
-        n_min = (r / xi_f - 1) / (mu - 1)
-        n_min = max(0.0, n_min)
-
-        res = minimize_scalar(lambda n: F_d(r, n), bounds=(n_min, 1.0), method='bounded')
-        F_min = res.fun
-
-        if F_min > 1e9 or not np.isfinite(F_min):
+        F_f, _, F_u, _ = calc_branches(r)
+        candidates = [f for f in [F_f, F_u] if np.isfinite(f)]
+        if len(candidates) == 0 or min(candidates) > 1e9:
             F_eff4[i] = 1e10
-            continue
-
-        F_eff4[i] = F_min
-
+        else:
+            F_eff4[i] = min(candidates)
     return F_eff4 + Delta_E
 
-# ===================== 新增：计算 <n>(r) =====================
 def calc_n_mean(r_grid):
-    """
-    计算给定 r 下的 n 的统计平均值 <n>(r)。
-    分布为 P(n|r) ∝ exp(-F_d(r, n))，其中 F_d 为方法三使用的物理自由能。
-        <n>(r) = ∫ n P(n|r) dn / ∫ P(n|r) dn
-    积分域限制在物理可行域 [n_min, 1] 内，n_min 由 Lc(n) >= r 确定。
-    """
     n_mean_vals = np.zeros_like(r_grid)
     for i, r in enumerate(r_grid):
         if r >= xi_f * mu * 0.999:
             n_mean_vals[i] = 1.0
             continue
-
-        # 物理可行域下限
-        n_min = (r / xi_f - 1) / (mu - 1)
-        n_min = max(0.0, n_min)
-
-        # 寻找最小值以稳定指数积分
+        n_min = max(0.0, (r / xi_f - 1) / (mu - 1))
         res = minimize_scalar(lambda n: F_d(r, n), bounds=(n_min, 1.0), method='bounded')
         F_min = res.fun
-
         if F_min > 1e9 or not np.isfinite(F_min):
             n_mean_vals[i] = 1.0
             continue
-
-        # 在物理可行域 [n_min, 1] 上做连续积分
         n_vals = np.linspace(n_min, 1.0, 1000)
         F_d_vals = F_d(r, n_vals)
         weights = np.exp(-(F_d_vals - F_min))
-
         Z = simpson(weights, x=n_vals)
         Z = max(Z, 1e-300)
         numerator = simpson(n_vals * weights, x=n_vals)
-
         n_mean_vals[i] = numerator / Z
-
     return n_mean_vals
 
 # ===================== 可视化函数 =====================
@@ -242,16 +233,11 @@ def plot_comparison(output_dir):
 
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(20, 8))
 
-    # ---- 左图：四种方法的 F_eff(r) 对比 ----
     ax1.set_yscale('linear')
-    ax1.plot(r_m1, F_m1, '-',  color='blue',   label='"Gibbs" free energy',
-             linewidth=lines_linewidth)
-    ax1.plot(r_grid, F_m2, '-',  color='red',    label='Strict free energy(2-state)',
-             linewidth=lines_linewidth)
-    ax1.plot(r_grid, F_m3, '-.', color='green',  label='Strict free energy',
-             linewidth=lines_linewidth)
-    ax1.plot(r_grid, F_m4, '--', color='orange', label='Adiabatic free energy',
-             linewidth=lines_linewidth)
+    ax1.plot(r_m1, F_m1, '-',  color='blue',   label='"Gibbs" free energy', linewidth=lines_linewidth)
+    ax1.plot(r_grid, F_m2, '-',  color='red',    label='Strict free energy(2-state)', linewidth=lines_linewidth)
+    ax1.plot(r_grid, F_m3, '-.', color='green',  label='Strict free energy', linewidth=lines_linewidth)
+    ax1.plot(r_grid, F_m4, '--', color='orange', label='Adiabatic free energy', linewidth=lines_linewidth)
 
     ax1.set_xlabel('End-to-end Length $r$', fontsize=label_fontsize)
     ax1.set_ylabel('$F_{\\text{eff}}(r)$', fontsize=label_fontsize)
@@ -261,8 +247,6 @@ def plot_comparison(output_dir):
     ax1.grid(True, which="major", ls="--", alpha=grid_alpha)
     ax1.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='upper left')
 
-    # ---- 右图：n*(r) 与 <n>(r) 对比 ----
-    # 最可几 n*(r)
     n_star_vals = np.zeros_like(r_grid)
     for i, r in enumerate(r_grid):
         if r >= xi_f * mu * 0.99:
@@ -272,46 +256,143 @@ def plot_comparison(output_dir):
         res = minimize_scalar(lambda n: F_d(r, n), bounds=(n_min, 1.0), method='bounded')
         n_star_vals[i] = res.x if res.fun < 1e9 else 1.0
 
-    # 统计平均 <n>(r) —— 新增
     n_mean_vals = calc_n_mean(r_grid)
-
-    ax2.plot(r_grid, n_star_vals, '-',  color='purple', linewidth=lines_linewidth,
-             label='Most probable $n^*(r)$')
-    ax2.plot(r_grid, n_mean_vals, '--', color='darkcyan', linewidth=lines_linewidth,
-             label='Statistical average $\\langle n \\rangle(r)$')
+    ax2.plot(r_grid, n_star_vals, '-',  color='purple', linewidth=lines_linewidth, label='Minimal $n^*(r)$')
+    ax2.plot(r_grid, n_mean_vals, '--', color='darkcyan', linewidth=lines_linewidth, label='Average $\\langle n \\rangle(r)$')
 
     ax2.set_xlabel('$r$', fontsize=label_fontsize)
     ax2.set_ylabel('$n$', fontsize=label_fontsize)
-    ax2.set_title('Unfolding Fraction: Most Probable vs. Mean',
-                  fontsize=title_fontsize, pad=20)
+    ax2.set_title('Unfolding Fraction of Single Domain', fontsize=title_fontsize, pad=20)
     ax2.set_xlim(0, 10)
     ax2.set_ylim(-0.05, 1.05)
     ax2.grid(True, which="major", ls="--", alpha=grid_alpha)
     ax2.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='upper left')
 
     for ax in [ax1, ax2]:
-        ax.tick_params(axis='x', which='major', length=6,
-                       direction=xtick_direction, top=xtick_top)
-        ax.tick_params(axis='y', which='major', width=ytick_major_width,
-                       direction=ytick_direction, right=ytick_right)
+        ax.tick_params(axis='x', which='major', length=6, direction=xtick_direction, top=xtick_top)
+        ax.tick_params(axis='y', which='major', width=ytick_major_width, direction=ytick_direction, right=ytick_right)
         for spine in ax.spines.values():
             spine.set_linewidth(axes_linewidth)
 
     plt.tight_layout()
-
-    # ============ 按路径存储 ============
     os.makedirs(output_dir, exist_ok=True)
     save_path = os.path.join(output_dir, 'F_eff_comparison_final.png')
-    fig.savefig(save_path, dpi=savefig_dpi, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    fig.savefig(save_path, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
+    print(f"图表已保存至: {save_path}")
+
+def plot_Fd_minus_Fmin_vs_n(output_dir):
+    r_list = [2, 4, 6, 10]
+    fig, ax = plt.subplots(figsize=(10, 8))
+    colors = plt.cm.viridis(np.linspace(0, 1, len(r_list)))
+
+    for idx, r in enumerate(r_list):
+        n_min = max(0.0, (r / xi_f - 1) / (mu - 1))
+        if n_min >= 0.999:
+            continue
+        n_vals = np.linspace(n_min, 1.0, 1000)
+        F_d_vals = F_d(r, n_vals)
+        F_f, _, F_u, _ = calc_branches(r)
+        candidates = [f for f in [F_f, F_u] if np.isfinite(f)]
+        F_min = min(candidates) if len(candidates) > 0 else np.min(F_d_vals)
+        y_vals = F_d_vals - F_min
+        ax.plot(n_vals, y_vals, '-', color=colors[idx], linewidth=lines_linewidth, label=f'$r = {r}$')
+
+    ax.set_xlabel('$n$', fontsize=label_fontsize)
+    ax.set_ylabel('$F_d(r, n) - F_{\\min}(r)$', fontsize=label_fontsize)
+    ax.set_title('Free Energy Landscape vs Unfolding Fraction', fontsize=title_fontsize, pad=20)
+    ax.set_xlim(0, 1.0)
+    ax.set_ylim(-1.0, 80.0)
+    ax.grid(True, which="major", ls="--", alpha=grid_alpha)
+    ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='upper right')
+
+    ax.tick_params(axis='x', which='major', length=6, direction=xtick_direction, top=xtick_top)
+    ax.tick_params(axis='y', which='major', width=ytick_major_width, direction=ytick_direction, right=ytick_right)
+    for spine in ax.spines.values():
+        spine.set_linewidth(axes_linewidth)
+
+    plt.tight_layout()
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.join(output_dir, 'Fd_minus_Fmin_vs_n.png')
+    fig.savefig(save_path, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
     print(f"图表已保存至: {save_path}")
     plt.show()
+
+# ===================== 新增：绘制 ΔF_{u-f}(r) 与分支交叉点 =====================
+def plot_delta_F_vs_r(output_dir):
+    """
+    绘制 ΔF_{u-f}(r) = F_u(r) - F_f(r) 随 r 的变化，
+    并自动寻找和标注零点（一级相变 branch crossing）。
+    """
+    r_max = 0.98 * xi_f * mu
+    r_grid = np.linspace(0, r_max, 500)
+
+    delta_F = calc_delta_F(r_grid)
+
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    # 绘制 ΔF_{u-f} 曲线
+    ax.plot(r_grid, delta_F, '-', color='crimson', linewidth=lines_linewidth, 
+            label='$\\Delta F_{u-f}(r) = F_u(r) - F_f(r)$')
+    
+    # 添加 y=0 参考线
+    ax.axhline(0, color='black', linestyle='--', linewidth=1.5, alpha=0.7)
+
+    # 寻找零点 (分支交叉点)
+    valid_idx = np.where(np.isfinite(delta_F))[0]
+    if len(valid_idx) > 0:
+        valid_r = r_grid[valid_idx]
+        valid_dF = delta_F[valid_idx]
+        # 检查符号变化
+        sign_changes = np.where(np.diff(np.sign(valid_dF)))[0]
+        
+        if len(sign_changes) > 0:
+            # 取第一个符号变化点进行线性插值
+            i = sign_changes[0]
+            r1, r2 = valid_r[i], valid_r[i+1]
+            d1, d2 = valid_dF[i], valid_dF[i+1]
+            
+            # 线性插值求零点
+            r_eq = r1 - d1 * (r2 - r1) / (d2 - d1)
+            
+            # 标记零点
+            ax.plot(r_eq, 0, 'o', color='blue', markersize=12, zorder=5)
+            
+            # 添加文字标注
+            ax.annotate(f'Branch Crossing\n$r_{{eq}} \\approx {r_eq:.3f}$',
+                        xy=(r_eq, 0), xytext=(r_eq + 1.5, 5),
+                        arrowprops=dict(facecolor='black', shrink=0.05, width=2, headwidth=8),
+                        fontsize=legend_fontsize, ha='left', va='bottom',
+                        bbox=dict(boxstyle="round,pad=0.3", fc="white", ec="gray", alpha=0.9))
+            
+            print(f"找到一级相变分支交叉点: r_eq = {r_eq:.4f}")
+        else:
+            print("在给定 r 范围内未找到 ΔF_{u-f} 的零点。")
+    else:
+        print("计算得到的 delta_F 全为 NaN，请检查参数或 r 范围。")
+
+    ax.set_xlabel('End-to-end Length $r$', fontsize=label_fontsize)
+    ax.set_ylabel('$\\Delta F_{u-f}(r)$', fontsize=label_fontsize)
+    ax.set_title('Free Energy Difference and Branch Crossing', fontsize=title_fontsize, pad=20)
+    ax.set_xlim(0, 10.0)
+    ax.set_ylim(-20, 20)
+    ax.grid(True, which="major", ls="--", alpha=grid_alpha)
+    ax.legend(fontsize=legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
+
+    ax.tick_params(axis='x', which='major', length=6, direction=xtick_direction, top=xtick_top)
+    ax.tick_params(axis='y', which='major', width=ytick_major_width, direction=ytick_direction, right=ytick_right)
+    for spine in ax.spines.values():
+        spine.set_linewidth(axes_linewidth)
+
+    plt.tight_layout()
+    os.makedirs(output_dir, exist_ok=True)
+    save_path = os.path.join(output_dir, 'Delta_F_branch_crossing.png')
+    fig.savefig(save_path, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
+    print(f"图表已保存至: {save_path}")
 
 # ===================== 可选：单独绘制 <n>(r) =====================
 def plot_n_mean_alone(output_dir):
     r_max = 0.98 * xi_f * mu
     r_grid = np.linspace(0, r_max, 1000)
-
     n_mean_vals = calc_n_mean(r_grid)
 
     fig, ax = plt.subplots(figsize=(10, 8))
@@ -323,23 +404,29 @@ def plot_n_mean_alone(output_dir):
     ax.set_ylim(-0.05, 1.05)
     ax.grid(True, which="major", ls="--", alpha=grid_alpha)
 
-    ax.tick_params(axis='x', which='major', length=6,
-                   direction=xtick_direction, top=xtick_top)
-    ax.tick_params(axis='y', which='major', width=ytick_major_width,
-                   direction=ytick_direction, right=ytick_right)
+    ax.tick_params(axis='x', which='major', length=6, direction=xtick_direction, top=xtick_top)
+    ax.tick_params(axis='y', which='major', width=ytick_major_width, direction=ytick_direction, right=ytick_right)
     for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)
 
     plt.tight_layout()
     os.makedirs(output_dir, exist_ok=True)
     save_path = os.path.join(output_dir, 'n_mean_vs_r.png')
-    fig.savefig(save_path, dpi=savefig_dpi, bbox_inches='tight',
-                facecolor='white', edgecolor='none')
+    fig.savefig(save_path, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
     print(f"图表已保存至: {save_path}")
     plt.show()
 
 if __name__ == "__main__":
     output_dir = '/home/tyt/project/protein_gel/GB1_results/Single_chain/results'
+    
+    # 1. 四种方法对比图
     plot_comparison(output_dir)
+    
+    # 2. F_d(r,n) - F_min(r) vs n 图
+    plot_Fd_minus_Fmin_vs_n(output_dir)
+    
+    # 3. 新增：ΔF_{u-f}(r) 分支交叉图
+    plot_delta_F_vs_r(output_dir)
+    
     # 如需单独绘制 <n>(r) 曲线，取消下面这行的注释
     # plot_n_mean_alone(output_dir)

@@ -78,7 +78,7 @@ def F_WLC(r, n):
     Lc = Lc_of_n(n)
     x = r / Lc
     x_clipped = np.clip(x, 0, 0.9999)
-    res = (Lc / 4) * phi(x_clipped)
+    res = Lc * phi(x_clipped)
     return np.where(x >= 0.9999, 1e10, res)
 
 def U_n(n):

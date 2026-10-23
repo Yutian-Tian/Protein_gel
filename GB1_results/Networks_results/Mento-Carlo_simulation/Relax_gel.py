@@ -342,6 +342,8 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
     
     N_vals = np.arange(1, 21, 1)
+
+    print(G0_3chain_WLC(1))
     
     plot_G0_3chain(N_vals, save_dir=output_dir)
 

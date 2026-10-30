@@ -92,7 +92,7 @@ plt.rcParams.update({
     'ytick.right': ytick_right,
 })
 
-trapz_func = getattr(np, 'trapezoid', np.trapz)
+trapz_func = np.trapezoid
 
 # ============ 核心物理参数 ============
 mu       = 7.6      # 展开态/折叠态轮廓长度比
@@ -205,31 +205,57 @@ class ChainN1:
 
 # ===================== 经典 WLC 网络 =====================
 class WLCNetwork:
-    def __init__(self, L, delta=delta, dr=DR):
+    """固定轮廓 L 的 WLC 网络。
+
+    reference=None   : 参考态为本 WLC 自身的平衡分布 p0 ∝ 4πr²e^{-Lφ(r/L)}
+    reference=(r_ref, p0_ref)
+                     : 制备参考态取外部网络的分布（如折叠网络的 p0），
+                       链力仍按轮廓 L 计算——用于"解折叠后轮廓变长、
+                       但交联点位置由折叠态决定"的对比网络。
+    """
+    def __init__(self, L, delta=delta, dr=DR, reference=None):
         self.L = float(L)
         self.delta = delta
-        r = np.arange(0.0, self.L - delta + 0.5 * dr, dr)
-        x = r / self.L
-
-        F = self.L * phi(x)
-        ln_p0 = np.log(4.0 * np.pi) + 2.0 * np.log(np.maximum(r, 1e-12)) - F
-        ln_p0 -= logsumexp(ln_p0 + np.log(r[1] - r[0]))
-        self.p0 = np.exp(ln_p0)
-        self.r = r
+        self._own_ref = reference is None
+        if reference is None:
+            r = np.arange(0.0, self.L - delta + 0.5 * dr, dr)
+            x = r / self.L
+            F = self.L * phi(x)
+            ln_p0 = np.log(4.0 * np.pi) + 2.0 * np.log(np.maximum(r, 1e-12)) - F
+            ln_p0 -= logsumexp(ln_p0 + np.log(r[1] - r[0]))
+            self.p0 = np.exp(ln_p0)
+            self.r = r
+        else:
+            self.r = np.asarray(reference[0], dtype=float)
+            self.p0 = np.asarray(reference[1], dtype=float)
+        x = self.r / self.L
 
         self.f  = np.clip(fMS(x), 0.0, F_MAX_CLIP)
         self.fp = np.clip(fMSp(x) / self.L, 0.0, FP_MAX_CLIP)
 
-        self.R0 = np.sqrt(trapz_func(r**2 * self.p0, r))
+        self.R0 = np.sqrt(trapz_func(self.r**2 * self.p0, self.r))
+        self.Lwall = self.L - self.delta     # 轮廓墙（拉紧判据用）
 
     def sigma(self, lam):
         out = np.zeros_like(lam)
         wtaper = 0.25
         for i, lm in enumerate(lam):
             r1x = lm * self.r
-            wcut = np.clip((self.r[-1] - r1x) / wtaper + 1.0, 0.0, 1.0)
-            f1 = np.interp(np.minimum(r1x, self.r[-1]), self.r, self.f)
-            f2 = np.interp(lm**-0.5 * self.r, self.r, self.f)
+            if self._own_ref:
+                # 原始算法：力在自身网格上插值并在端点截断
+                wcut = np.clip((self.r[-1] - r1x) / wtaper + 1.0, 0.0, 1.0)
+                f1 = np.interp(np.minimum(r1x, self.r[-1]), self.r, self.f)
+                f2 = np.interp(lm**-0.5 * self.r, self.r, self.f)
+            else:
+                # 继承参考态：力对任意 lam*r 解析求值。
+                # 超过轮廓墙 Lwall 的链按墙位置截断取力（fMS 在墙处有限，
+                # 再统一 clip 到 F_MAX_CLIP），避免 clip 上界 1-1e-9
+                # 把 x>=1 的全部链映射到 fMS(1-1e-9)~2.5e17 的发散值。
+                wcut = np.clip((self.Lwall - r1x) / wtaper + 1.0, 0.0, 1.0)
+                xwall = self.Lwall / self.L
+                f1 = np.clip(fMS(np.minimum(r1x / self.L, xwall)), 0.0, F_MAX_CLIP)
+                f2 = np.clip(fMS(np.minimum(lm**-0.5 * self.r / self.L, xwall)),
+                             0.0, F_MAX_CLIP)
             integrand = wcut * self.p0 * self.r * (f1 - lm**-1.5 * f2)
             out[i] = trapz_func(integrand, self.r) / 3.0
         return out
@@ -240,7 +266,9 @@ class WLCNetwork:
         )
 
     def taut_weight(self, lam):
-        rc = self.r[-1] / lam
+        # 自身平衡参考态（folded 基线）：用原始网格端点 r[-1] 作拉紧判据
+        # 继承参考态（unfolded 基线）：用轮廓墙 Lwall = L - delta
+        rc = (self.r[-1] if self._own_ref else self.Lwall) / lam
         mask = self.r >= rc
         return trapz_func(self.p0[mask], self.r[mask]) if mask.any() else 0.0
 
@@ -290,8 +318,9 @@ def main():
 
     # ---------- 经典 WLC 网络基线 ----------
     print('\n=== 经典 WLC 网络基线（3-chain 仿射，分布版） ===')
-    wlc_folded   = WLCNetwork(xi_f)        
-    wlc_unfolded = WLCNetwork(mu * xi_f)   
+    wlc_folded   = WLCNetwork(xi_f)
+    wlc_unfolded = WLCNetwork(mu * xi_f,
+                              reference=(wlc_folded.r, wlc_folded.p0))
 
     E0_f = wlc_folded.E0()
     E0_u = wlc_unfolded.E0()
@@ -315,8 +344,13 @@ def main():
 
     # 画线，统一使用 LaTeX 数学环境
     ax.plot(lam, sig, 'r-', linewidth=lines_linewidth, label=r'$N=1$ protein network')
-    #ax.plot(lam_f, sig_f, 'b--', linewidth=lines_linewidth, label=fr'WLC folded, \(L=\xi_f\) (\(E_0={E0_f:.2f}\ \rho k_B T\))')
-    #ax.plot(lam_u, sig_u, 'g-.', linewidth=lines_linewidth, label=fr'WLC unfolded, \(L=\mu\xi_f\) (\(E_0={E0_u:.2f}\ \rho k_B T\))')
+    ax.plot(lam_f, sig_f, 'b--', linewidth=lines_linewidth,
+            label=r'WLC folded')
+    # 绿线只画到硬化起始之前（lambda<=8.5），
+    # 此后为有限拉伸硬化区，幅度依赖截断参数、仿射假设失效
+    m_show = lam_u <= 8.5
+    ax.plot(lam_u[m_show], sig_u[m_show], 'g--', linewidth=lines_linewidth,
+            label=r'WLC unfolded')
 
     # 坐标轴标签与标题，统一使用 LaTeX 数学环境
     ax.set_xlabel(r'Stretch $\lambda$', fontsize=label_fontsize)
@@ -339,12 +373,46 @@ def main():
     for spine in ax.spines.values():
         spine.set_linewidth(axes_linewidth)
 
-    ax.legend(fontsize=0.8*legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
+    ax.legend(fontsize=0.7*legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
 
     plt.tight_layout()
     fpath = os.path.join(outdir, 'Constitutive_Curve_N1.png')
     fig.savefig(fpath, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
+
+    # ---------- 图 2：三个网络的参考态径向分布 ----------
+    # 注：WLC unfolded 网络的参考态是继承 folded 网络的 p0，
+    #     其分布曲线与 WLC folded 完全重合，图中以绿色短划覆盖显示。
+    fig2, ax2 = plt.subplots(figsize=(8, 6))
+    ax2.plot(ch.r, ch.p0, 'r-', linewidth=lines_linewidth,
+             label=r'$N=1$ protein network')
+    ax2.plot(wlc_folded.r, wlc_folded.p0, 'b--', linewidth=lines_linewidth,
+             label=r'WLC folded')
+    ax2.plot(wlc_unfolded.r, wlc_unfolded.p0, 'g-.', linewidth=lines_linewidth,
+             label=r'WLC unfolded')
+
+    ax2.set_xlabel(r'End-to-end distance $r$ / $l_p$', fontsize=label_fontsize)
+    ax2.set_ylabel(r'$p_0(r)$', fontsize=label_fontsize)
+    ax2.set_title('Reference state distribution', fontsize=title_fontsize, pad=20)
+    ax2.grid(True, which="major", ls="--", alpha=grid_alpha)
+
+    ax2.set_xlim(0, 10)
+
+    ax2.tick_params(axis='x', which='major', length=6, direction=xtick_direction, top=xtick_top)
+    ax2.tick_params(axis='y', which='major', width=ytick_major_width, direction=ytick_direction, right=ytick_right)
+    ax2.minorticks_on()
+    ax2.tick_params(axis='x', which='minor', length=4, width=1,
+                    direction=xtick_direction, top=xtick_top)
+    ax2.tick_params(axis='y', which='minor', length=4, width=1,
+                    direction=ytick_direction, right=ytick_right)
+    for spine in ax2.spines.values():
+        spine.set_linewidth(axes_linewidth)
+    ax2.legend(fontsize=0.8*legend_fontsize, framealpha=0.9, edgecolor='none', loc='best')
+
+    plt.tight_layout()
+    fpath2 = os.path.join(outdir, 'Reference_distribution.png')
+    fig2.savefig(fpath2, dpi=savefig_dpi, bbox_inches='tight', facecolor='white', edgecolor='none')
     print('\nsaved:', fpath)
+    print('\nsaved:', fpath2)
 
 if __name__ == '__main__':
     main()

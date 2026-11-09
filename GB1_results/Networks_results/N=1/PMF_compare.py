@@ -95,7 +95,7 @@ trapz_func = getattr(np, 'trapezoid', np.trapz)
 
 # ============ 核心物理参数 ============
 mu        = 7.6      # 展开态/折叠态轮廓长度比
-Delta_E   = 11.7     # 内部态能量尺度（kBT）
+Delta_E   = 11.9     # 内部态能量尺度（kBT）
 xi_f      = 3.6      # 单个折叠域长度（lp），即 GB1 的折叠长度
 DR        = 0.02     # 均匀网格间距（lp）
 NPTS      = 800      # n 方向采样点数
@@ -176,17 +176,17 @@ def plot_single_chain_forces(Fbar_prime, Ft_prime, Lc_max, xi_f_val, outdir):
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # (1) 条件平均自由能方案：Fbar'(r)
-    ax.plot(r_plot, Fbar_prime(r_plot), 'b-', lw=lines_linewidth,
-            label=r'$\langle F \rangle$')
+    # ax.plot(r_plot, Fbar_prime(r_plot), 'b-', lw=lines_linewidth,
+    #         label=r'$\langle F \rangle$')
 
     # (2) PMF 方案：F~'(r)
     ax.plot(r_plot, Ft_prime(r_plot), 'r-', lw=lines_linewidth,
             label=r'$\tilde{F}$')
 
     # WLC 基线（固定轮廓长度），自变量需为 r/xi_f
-    ax.plot(r_plot, f_MS(r_plot / xi_f_val), 'g--', lw=lines_linewidth,
+    ax.plot(r_plot, f_MS(r_plot / xi_f_val), 'b-', lw=lines_linewidth,
             label=f'$\\xi_f = {xi_f_val}$')
-    ax.plot(r_plot, f_MS(r_plot / (mu*xi_f_val)), 'g-.', lw=lines_linewidth,
+    ax.plot(r_plot, f_MS(r_plot / (mu*xi_f_val)), 'b--', lw=lines_linewidth,
             label=f'$\\xi_f = {mu*xi_f_val}$')
 
     ax.set_xlabel(r'End-to-end distance $r\ [l_p]$', fontsize=label_fontsize)

@@ -1,0 +1,9 @@
+N=1, mu=7.6, Delta_E=11.9, k1=6.5, k2=1.48, kBT=lp=1; full equilibrium reference
+xi_f=1: G0=5.544571041, frozen=15.73965299, variance_correction=10.19508195, refined=5.544571044, sigma_derivative=5.544571041, identity=5.544571051
+xi_f=3.6: G0=4.305053631, frozen=6.420287892, variance_correction=2.115234262, refined=4.305053631, sigma_derivative=4.305053631, identity=4.305053631
+xi_f=10: G0=3.542242732, frozen=4.162236576, variance_correction=0.6199938442, refined=3.542242732, sigma_derivative=3.542242732, identity=3.542242732
+xi_f=100: G0=2.974220662, frozen=3.169074763, variance_correction=0.1948541007, refined=2.974220662, sigma_derivative=2.974220662, identity=2.974220662
+gibbs xi_f=1: G0=0.5680077382, refined=0.5680077382, sigma_derivative=0.5680077383
+gibbs xi_f=3.6: G0=1.60948548, refined=1.60948548, sigma_derivative=1.609485481
+gibbs xi_f=10: G0=3.20927554, refined=3.20927554, sigma_derivative=3.20927554
+gibbs xi_f=100: G0=4.087296479, refined=4.087296479, sigma_derivative=4.087296479

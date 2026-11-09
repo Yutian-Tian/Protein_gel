@@ -1,0 +1,28 @@
+{
+  "N": 1,
+  "xi_f_over_lp": 3.6,
+  "mu": 7.6,
+  "Delta_E_over_kBT": 11.9,
+  "reference_distribution": "p0(r) = r^2 Z(r) / integral r^2 Z(r) dr",
+  "conditional_distribution": "p(n|r_peak) = exp(-F(r_peak,n)) / Z(r_peak)",
+  "conditional_measure": "uniform dn on accessible states in [0,1]",
+  "tail_probability_removed": 0.0,
+  "r_peak_over_lp": 1.923489070011994,
+  "candidate_peak_positions_over_lp": [
+    1.923489070011994
+  ],
+  "p0_at_peak_times_lp": 0.5271930620652852,
+  "mean_n_given_r_peak": 0.032647402900106266,
+  "probability_n_below_half_given_r_peak": 0.9999651625792012,
+  "probability_n_above_half_given_r_peak": 3.483742079879448e-05,
+  "validation": {
+    "conditional_integral_adaptive": 0.9999999999999561,
+    "conditional_integral_error_estimate": 7.803307352213858e-13,
+    "conditional_integral_csv_trapezoid": 1.0000000116036993,
+    "peak_stationarity_r_times_f_minus_2": -1.1102230246251565e-15,
+    "r_peak_state_order_1024": 1.92348907001195,
+    "r_peak_refinement_absolute_change": 4.39648317751562e-14,
+    "log_Z_conditional_refinement_absolute_change": 1.7852386235972517e-13,
+    "log_Z_reference_radial_refinement_absolute_change": 1.9184653865522705e-13
+  }
+}

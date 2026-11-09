@@ -1,0 +1,22 @@
+{
+  "N": 1,
+  "xi_f": 3.6,
+  "mu": 7.6,
+  "Delta_E": 11.9,
+  "tail_probability": 0.005,
+  "contour_margin": 0.99999999,
+  "n_state": 512,
+  "n_radial": 256,
+  "n_angle": 48,
+  "endpoint_quadrature": "geometrically spaced panels, 24-point Gauss per panel; refinement 48",
+  "G0_finite_reference": {
+    "folded": 4.2403428006936625,
+    "protein": 3.4660839480846355,
+    "unfolded": 0.2457881463134349
+  },
+  "G0_full_reference": {
+    "folded": 4.682796942448766,
+    "protein": 3.5220214522564115
+  },
+  "modulus_definition": "initial nominal uniaxial slope; shear modulus=G0/3"
+}

@@ -1,0 +1,5 @@
+N=1, xi_f=3.6, mu=7.6, Delta_E=11.9, k1=6.5, k2=1.48, tail=0.005, DR=0.005
+force inversion max residual: 3.8191672e-14
+E0 analytic: 1.600854094; finite difference: 1.600854118
+lambda=2: dF/dlambda=0.6684463719, sigma=0.6684463724, F(256)=1.566270648, F(512)=1.566270648
+lambda=6: dF/dlambda=1.233300808, sigma=1.233300807, F(256)=5.237720075, F(512)=5.237720075

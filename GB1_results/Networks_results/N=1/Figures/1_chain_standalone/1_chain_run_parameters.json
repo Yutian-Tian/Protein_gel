@@ -1,0 +1,26 @@
+{
+  "N": 1,
+  "xi_f": 3.6,
+  "mu": 7.6,
+  "Delta_E": 11.9,
+  "tail_probability": 0.005,
+  "contour_margin": 0.99999999,
+  "tasks": [
+    "constitutive",
+    "modulus",
+    "reference",
+    "conditional"
+  ],
+  "completed_tasks": [
+    "constitutive",
+    "modulus",
+    "reference",
+    "conditional"
+  ],
+  "output_directory": "/home/tyt/project/protein_gel/GB1_results/Networks_results/N=1/Figures/1_chain_standalone",
+  "python": "3.10.12",
+  "numpy": "2.2.6",
+  "scipy": "1.15.3",
+  "matplotlib": "3.10.5",
+  "elapsed_seconds": 129.87238892994355
+}

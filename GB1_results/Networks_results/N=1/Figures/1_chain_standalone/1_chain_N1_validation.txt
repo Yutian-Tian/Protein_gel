@@ -1,0 +1,12 @@
+folded: endpoint_sigma=4.712320439, endpoint_refined=4.712320439
+folded: G0_finite_reference=4.240342801, sigma_derivative=4.240342803, lambda=1.13647, sigma=0.6221076925, dF=0.6221076931, refined=0.6221076925
+protein: endpoint_sigma=2.604452541, endpoint_refined=2.604705128
+protein: G0_finite_reference=3.466083948, sigma_derivative=3.466083949, lambda=4.62319, sigma=1.422214264, dF=1.422214264, refined=1.422214413
+unfolded: endpoint_sigma=2.060806643, endpoint_refined=2.060806644
+unfolded: G0_finite_reference=0.2457881463, sigma_derivative=0.2457881463, lambda=4.62319, sigma=0.4564835133, dF=0.4564835133, refined=0.4564835133
+full reference xi_f=1, protein: G0=4.017828417, refined=4.017828418
+full reference xi_f=1, unfolded: G0=0.1247454715, refined=0.1247454715
+full reference xi_f=3.6, protein: G0=3.522021452, refined=3.522021452
+full reference xi_f=3.6, unfolded: G0=0.2507079509, refined=0.2507079509
+full reference xi_f=100, protein: G0=2.989688265, refined=2.989688265
+full reference xi_f=100, unfolded: G0=0.4496705626, refined=0.4496705626

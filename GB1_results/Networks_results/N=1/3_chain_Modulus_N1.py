@@ -46,7 +46,7 @@ ytick_minor_size = 5
 grid_linewidth = 1
 grid_alpha = 0.4
 lines_linewidth = 3
-lines_markersize = 7
+lines_markersize = 5
 
 figure_dpi = 100
 savefig_dpi = 300
@@ -306,28 +306,25 @@ def plot_G0_vs_xi_f(N_single, xi_f_vals, save_dir=None):
     ax.set_xscale('linear')
     ax.set_yscale('linear')
     ax.set_xlim(min(xi_f_vals), max(xi_f_vals))
-    ax.set_ylim(0, 1.08 * max(max(G0_quad_vals), max(G0_WLC_vals),
-                              max(G0_gibbs_vals), 3))
+    ax.set_ylim(0, 15)
 
     # ---- marker 抽稀与统一尺寸 ----
-    # 100 个数据点下每 ~8 点显示一个 marker，避免重叠。
-    markevery = max(1, len(xi_f_vals) // 20)
-    marker_kw = dict(markersize=lines_markersize, markeredgewidth=1.0, markevery=markevery)
+    marker_kw = dict(markersize=lines_markersize, markeredgewidth=1.0)
 
     # 红线：退火有效自由能的模量，含条件力方差修正
-    ax.plot(xi_f_vals, G0_quad_vals, '-s', color='red',
+    ax.plot(xi_f_vals, G0_quad_vals, '-o', color='red',
             linewidth=lines_linewidth,
             label=f'$N={N_single}$ protein network',
             zorder=6, **marker_kw)
 
     # 蓝线：固定轮廓长度 WLC
-    ax.plot(xi_f_vals, G0_WLC_vals, '-o', color='blue',
+    ax.plot(xi_f_vals, G0_WLC_vals, '--o', color='blue',
             linewidth=lines_linewidth,
             label='WLC network',
             zorder=5, **marker_kw)
 
     # 黑线：Gibbs network model
-    ax.plot(xi_f_vals, G0_gibbs_vals, '-^', color='black',
+    ax.plot(xi_f_vals, G0_gibbs_vals, '--o', color='black',
             linewidth=lines_linewidth,
             label='Gibbs network model',
             zorder=7, **marker_kw)
@@ -336,7 +333,7 @@ def plot_G0_vs_xi_f(N_single, xi_f_vals, save_dir=None):
                linewidth=lines_linewidth,
                label='$G_0^{Rubber}=$3.0', zorder=1)
 
-    ax.set_xlabel('Folded length $\\xi_\\mathrm{f}$', fontsize=label_fontsize)
+    ax.set_xlabel('Folded length $\\xi_\\mathrm{f}/[l_\\mathrm{p}]$', fontsize=label_fontsize)
     ax.set_ylabel('$G_0 / \\rho k_\\mathrm{B} T$', fontsize=label_fontsize)
     ax.set_title(f'Initial Modulus', fontsize=title_fontsize, pad=20)
 

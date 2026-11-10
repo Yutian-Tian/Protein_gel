@@ -1,0 +1,23 @@
+{
+  "N": 1,
+  "xi_f": 3.6,
+  "mu": 7.6,
+  "Delta_E": 11.9,
+  "tail_probability": 0.005,
+  "contour_margin": 0.99999999,
+  "n_state": 512,
+  "endpoint_quadrature": "geometrically spaced panels, 24-point Gauss per panel; refinement 48",
+  "G0_finite_reference": {
+    "folded": 4.2403428006936625,
+    "protein": 3.4660839480846355,
+    "unfolded": 0.2457881463134349,
+    "gibbs": 1.9432488897620341
+  },
+  "gibbs": {
+    "K1": 6.5,
+    "K2": 1.48,
+    "source": "1.png; protein Boltzmann preparation, Gibbs loading",
+    "definition": "r=x*Lc(f), f=f_MS(x), Lc=N*xi_f*((mu+1)/2+(mu-1)/2*tanh(K1(f-K2)))"
+  },
+  "modulus_definition": "initial nominal uniaxial slope; shear modulus=G0/3"
+}

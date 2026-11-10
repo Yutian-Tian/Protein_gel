@@ -44,8 +44,8 @@ xtick_minor_size = 5
 ytick_minor_size = 5
 grid_linewidth = 1
 grid_alpha = 0.4
-lines_linewidth = 4
-lines_markersize = 15
+lines_linewidth = 3
+lines_markersize = 5
 
 figure_dpi = 100
 savefig_dpi = 300
@@ -402,16 +402,16 @@ def plot_constitutive_curve(outdir, N=1):
     fig, ax = plt.subplots(figsize=(8, 6))
     ax.set_xscale('linear')
     ax.set_yscale('linear')
-    ax.set_xlim(1.0, 2.0)
+    ax.set_xlim(1.0, 8.0)
     ax.set_ylim(0, 5.0)
 
-    ax.plot(lam, sig, 'r-', linewidth=lines_linewidth,
+    ax.plot(lam, sig, 'r-o', linewidth=lines_linewidth, markersize = lines_markersize,
             label=rf'$N={N}$ protein network')
-    ax.plot(lam_f, sig_f, 'b--', linewidth=lines_linewidth,
+    ax.plot(lam_f, sig_f, 'b--o', linewidth=lines_linewidth, markersize = lines_markersize,
             label=r'WLC folded')
-    ax.plot(lam_u, sig_u, 'g--', linewidth=lines_linewidth,
+    ax.plot(lam_u, sig_u, 'g--o', linewidth=lines_linewidth, markersize = lines_markersize,
             label=r'WLC unfolded')
-    ax.plot(lam, sig_g, 'k-.', linewidth=lines_linewidth,
+    ax.plot(lam, sig_g, 'k--o', linewidth=lines_linewidth, markersize = lines_markersize,
             label=r'Gibbs network model')
 
     ax.set_xlabel(r'Stretch $\lambda$', fontsize=label_fontsize)

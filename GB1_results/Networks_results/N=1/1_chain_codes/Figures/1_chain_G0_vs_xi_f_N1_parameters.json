@@ -1,0 +1,23 @@
+{
+  "N": 1,
+  "xi_f_default": 3.6,
+  "mu": 7.6,
+  "Delta_E": 11.9,
+  "reference": "full (untruncated) reference distribution",
+  "xi_min": 1.0,
+  "xi_max": 100.0,
+  "xi_points": 100,
+  "modulus_definition": "initial nominal uniaxial slope; shear modulus=G0/3",
+  "modulus_method": "analytic integral <r^2*f_prime+4*r*f>/5; no curve fit",
+  "gibbs": {
+    "K1": 6.5,
+    "K2": 1.48,
+    "reference": "full annealed protein reference from 1.png",
+    "stiffness": "fcp(x)/(Lc(f)+x*Lc_prime(f)*fcp(x))"
+  },
+  "elapsed_seconds": 8.215086363023147,
+  "python": "3.10.12",
+  "numpy": "2.2.6",
+  "scipy": "1.15.3",
+  "matplotlib": "3.10.5"
+}

@@ -13,6 +13,12 @@
 两条曲线都描述了同一个退火展开模型的自由能导数；差别来自
 "先对 r 求导，后对 n 平均" 与 "先对 n 平均，后对 r 求导" 的顺序。
 
+附加：tanh 唯象曲线（黑色线），以力 f 为参数：
+    r(f) = x(f) * L_c(f)
+    x(f) ≈ 1 - (1/2) sqrt(kBT / (f lp))        （大伸长渐近）
+    L_c(f) = N xi_f { (mu+1)/2 + (mu-1)/2 tanh[k1 (f - k2)] }
+参数取 k1 = 6.5, k2 = 1.48（与图示一致），N xi_f 为本体系的折叠态轮廓长度。
+
 横轴为端距 r（单位 lp），不再做 r/xi_f 归一化。
 
 约化单位：kBT = lp = 1。
@@ -91,12 +97,18 @@ plt.rcParams.update({
     'ytick.right': ytick_right,
 })
 
-trapz_func = getattr(np, 'trapezoid', np.trapz)
+try:
+    trapz_func = np.trapezoid
+except AttributeError:  # NumPy < 1.26
+    trapz_func = np.trapz
 
 # ============ 核心物理参数 ============
 mu        = 7.6      # 展开态/折叠态轮廓长度比
 Delta_E   = 11.9     # 内部态能量尺度（kBT）
 xi_f      = 3.6      # 单个折叠域长度（lp），即 GB1 的折叠长度
+N_CHAIN   = 1        # 结构域数目；折叠态轮廓长度 = N_CHAIN * xi_f
+K1        = 6.5      # tanh 唯象曲线斜率参数
+K2        = 1.48     # tanh 唯象曲线中心力参数
 DR        = 0.02     # 均匀网格间距（lp）
 NPTS      = 800      # n 方向采样点数
 DELTA     = 0.05     # 支撑区间保护：r < mu*xi_f - delta
@@ -115,6 +127,19 @@ def f_MS(x):
 def U_of_n(n):
     """内部变量 n 的势能项。"""
     return Delta_E * n - Delta_E * np.cos(2 * np.pi * n)
+
+# ===================== tanh 唯象曲线（以力为参数） =====================
+
+def Lc_tanh(f, mu_val=mu, k1=K1, k2=K2):
+    """唯象轮廓长度 L_c(f) = L_folded {(mu+1)/2 + (mu-1)/2 tanh[k1(f-k2)]}。"""
+    return N_CHAIN * xi_f * ((mu_val + 1.0)/2.0
+                       + (mu_val - 1.0)/2.0 * np.tanh(k1*(f - k2)))
+
+def r_phenomenological(x_val):
+    """唯象曲线的端距 r(f) = x(f) L_c(f)。"""
+    f_val = f_MS(x_val)
+    r_val = x_val * Lc_tanh(f_val)
+    return r_val
 
 # ===================== 单链自由能与力计算 =====================
 def compute_single_chain_forces(xi_f_val):
@@ -181,7 +206,7 @@ def plot_single_chain_forces(Fbar_prime, Ft_prime, Lc_max, xi_f_val, outdir):
 
     # (2) PMF 方案：F~'(r)
     ax.plot(r_plot, Ft_prime(r_plot), 'r-', lw=lines_linewidth,
-            label=r'$\tilde{F}$')
+            label=r'$f(r) = \frac{\partial \tilde{F}}{\partial r}$')
 
     # WLC 基线（固定轮廓长度），自变量需为 r/xi_f
     ax.plot(r_plot, f_MS(r_plot / xi_f_val), 'b-', lw=lines_linewidth,
@@ -189,10 +214,17 @@ def plot_single_chain_forces(Fbar_prime, Ft_prime, Lc_max, xi_f_val, outdir):
     ax.plot(r_plot, f_MS(r_plot / (mu*xi_f_val)), 'b--', lw=lines_linewidth,
             label=f'$\\xi_f = {mu*xi_f_val}$')
 
+    # (3) tanh 唯象曲线（黑色）：以 f 为参数，r(f) = x(f) L_c(f)
+    x_val = np.linspace(0, 1 - 1e-10, 1000)
+    f_para = f_MS(x_val)
+    r_para = r_phenomenological(x_val)
+    ax.plot(r_para, f_para, 'k-', lw=lines_linewidth,
+            label='Gibbs tanh')
+
     ax.set_xlabel(r'End-to-end distance $r\ [l_p]$', fontsize=label_fontsize)
     ax.set_ylabel(r'Force $f \quad [k_B T / l_p]$', fontsize=label_fontsize)
     ax.set_xlim(0, mu * xi_f_val * 1.02)
-    ax.set_ylim(-1.5, 10)
+    ax.set_ylim(0, 6)
     ax.set_title('Force-extension Relation', fontsize=title_fontsize, pad=20)
     
     # 图例的字体大小使用全局设置
@@ -207,20 +239,14 @@ def plot_single_chain_forces(Fbar_prime, Ft_prime, Lc_max, xi_f_val, outdir):
 
 # ===================== 主程序 =====================
 def main():
-    outdir = "/home/tyt/project/protein_gel/GB1_results/Networks_results/N=1/Figures"
+    outdir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                          'Figures', 'PMF_compare')
     os.makedirs(outdir, exist_ok=True)
 
     print(f'正在计算 xi_f = {xi_f} 的单链自由能与力...')
     Fbar_prime, Ft_prime, R0_eq, Lc_max = compute_single_chain_forces(xi_f)
 
-    print(f'xi_f = {xi_f}, R0_eq = {R0_eq:.4f} lp = {R0_eq/xi_f:.3f} xi_f, '
-          f'轮廓壁位于 {Lc_max:.2f} lp')
 
-    # 诊断：在若干 r 处比较两种力
-    print('\n   r [lp]   Fbar_prime   Ft_prime')
-    for frac in [0.25, 0.5, 0.577, 0.75, 1.5, 3.0]:
-        r_test = frac * xi_f
-        print(f'{r_test:8.3f}   {Fbar_prime(r_test):10.4f}  {Ft_prime(r_test):10.4f}')
 
     plot_single_chain_forces(Fbar_prime, Ft_prime, Lc_max, xi_f, outdir)
 

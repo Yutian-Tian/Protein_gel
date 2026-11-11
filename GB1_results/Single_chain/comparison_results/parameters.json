@@ -1,0 +1,30 @@
+{
+  "N": 10,
+  "xi_f": 3.6,
+  "alpha": 7.6,
+  "delta_e": 11.9,
+  "force_max": 10.0,
+  "force_points": 100,
+  "r_points": 500,
+  "output": "/home/tyt/project/protein_gel/GB1_results/Single_chain/comparison_results",
+  "energy_distribution": "homogeneous: all domains use delta_e",
+  "equilibrium": "free-energy minima, not thermal partition averages",
+  "coexistence": "N+1 discrete degenerate Gibbs minima; connecting line is a visual guide",
+  "transition": {
+    "force": 1.4909063391537212,
+    "x": 0.5431392782551763,
+    "r_folded": 19.553014017186346,
+    "r_unfolded": 148.60290653061622
+  },
+  "validation": {
+    "gibbs_max_force_residual": 2.063593740331271e-11,
+    "legendre_lower_bound_min_gap": 0.0,
+    "max_coexistence_force_error": 6.661338147750939e-16,
+    "max_coexistence_energy_error": 0.0,
+    "helmholtz_binary_bound_max_gap": 0.0,
+    "total_extension_residual": 8.526512829121202e-14,
+    "common_tension_residual": 1.2434497875801753e-14,
+    "helmholtz_solver": "original multi-start coordinate descent; not a proof of global optimality"
+  },
+  "figure_style": "8x6 inches, 300 dpi, Times/STIX; aligned with 1_chain_constitutive_curves.py"
+}
